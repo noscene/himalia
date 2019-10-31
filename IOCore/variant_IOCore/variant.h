@@ -258,12 +258,12 @@ static const uint8_t SCL = PIN_WIRE_SCL;
 // no I2S on G19!
 
 //QSPI Pins
-#define PIN_QSPI_SCK	(5u)
-#define PIN_QSPI_CS	    (2u)
-#define PIN_QSPI_IO0	(17u)
-#define PIN_QSPI_IO1	(18u)
-#define PIN_QSPI_IO2	(19u)
-#define PIN_QSPI_IO3	(20u)
+#define PIN_QSPI_SCK	(5u)    // PB10
+#define PIN_QSPI_CS	  (2u)    // PB11
+#define PIN_QSPI_IO0	(17u)   // PA08
+#define PIN_QSPI_IO1	(18u)   // PA09
+#define PIN_QSPI_IO2	(19u)   // PA10
+#define PIN_QSPI_IO3	(20u)   // PA11
 
 /*
 //PCC Pins

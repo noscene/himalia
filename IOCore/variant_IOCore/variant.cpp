@@ -60,7 +60,7 @@ const PinDescription g_APinDescription[]=
     // ________________ Internal Connections ___________________
     
     // 21..26 Internal FPGA Connection
-    { PORTB,   3, PIO_DIGITAL, PIN_ATTR_DIGITAL, No_ADC_Channel, NOT_ON_PWM, NOT_ON_TIMER, EXTERNAL_INT_NONE },      // 21 ICE40_CLK        SERCOM       5.1 Alt
+    { PORTB,   3, PIO_DIGITAL, PIN_ATTR_DIGITAL, ADC_Channel15, NOT_ON_PWM, NOT_ON_TIMER, EXTERNAL_INT_NONE },      // 21 ICE40_CLK        SERCOM       5.1 Alt
     { PORTA,  23, PIO_DIGITAL, PIN_ATTR_DIGITAL, No_ADC_Channel, NOT_ON_PWM, NOT_ON_TIMER, EXTERNAL_INT_NONE },      // 22 ICE40_MOSI       SERCOM 3.1 / 5.0 Alt  
     { PORTB,   2, PIO_DIGITAL, PIN_ATTR_DIGITAL, No_ADC_Channel, NOT_ON_PWM, NOT_ON_TIMER, EXTERNAL_INT_NONE },      // 23 ICE40_MISO       SERCOM 3.1 / 5.1 Alt
     { PORTA,  22, PIO_DIGITAL, PIN_ATTR_DIGITAL, No_ADC_Channel, NOT_ON_PWM, NOT_ON_TIMER, EXTERNAL_INT_NONE },      // 24 ICE40_CS         SERCOM 3.0 / 5.1

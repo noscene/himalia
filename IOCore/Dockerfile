@@ -52,6 +52,9 @@ echo "Himalia.menu.cache.off=Disabled" >> boards.txt && \
 echo "Himalia.menu.cache.off.build.cache_flags=" >> boards.txt && \
 cd && \
 chmod 755 /root/uf2/utils/uf2conv.py && \
+cd /root/Arduino/libraries && git clone https://github.com/noscene/Adafruit_SPIFlash && cd && \
+arduino-cli lib install "Adafruit ZeroTimer Library" && \
+arduino-cli lib install "SdFat - Adafruit Fork" && \
 echo "arduino-cli compile -v  --fqbn  dadamachines_doppler:samd:Himalia -o myBin /PRJ/Himalia/HimaliaSketch/" > build.sh && \
 echo "uf2/utils/uf2conv.py -b 0x4000 -c -o mybin.uf2 myBin.bin" >> build.sh && \
 echo "cp mybin.uf2 /USB/Himalia/" >> build.sh
