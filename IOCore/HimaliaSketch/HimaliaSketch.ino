@@ -85,6 +85,14 @@ void setup() {
   Serial.print("JEDEC ID: "); Serial.println(flash.getJEDECID(), HEX);
   Serial.print("Flash size: "); Serial.println(flash.size());
 
+  pinMode(PA13,OUTPUT); digitalWrite(PA13,false);
+  pinMode(PA14,OUTPUT); digitalWrite(PA14,false);
+  pinMode(PA15,OUTPUT); digitalWrite(PA15,false);
+  pinMode(PA16,OUTPUT); digitalWrite(PA16,false);
+  pinMode(PA17,OUTPUT); digitalWrite(PA17,false);
+  pinMode(PA18,OUTPUT); digitalWrite(PA18,false);
+
+
 
 
   pinMode(PA23,OUTPUT); // LED
@@ -101,6 +109,8 @@ void setup() {
   pinMode(PA22,OUTPUT); // PWM OUT
 
   pinMode(PB01,INPUT_PULLUP); // SQR1
+  pinMode(PA21,INPUT_PULLUP); // SQR1
+  
 
 
   // gen Table
@@ -122,7 +132,7 @@ void setup() {
                 TC_WAVE_GENERATION_MATCH_PWM  // match style
                 );
 
-  zt4.setPeriodMatch(150, 100, 0); // 1 match, channel 0
+  zt4.setPeriodMatch(150, 150, 0); // 1 match, channel 0
   zt4.setCallback(true, TC_CALLBACK_CC_CHANNEL0, renderAudio);  // set DAC in the callback
   zt4.enable(true);
 }
@@ -180,23 +190,35 @@ void loop() {
   // clk_tempo_f = pow(12,clk_tempo_f);
 
   thea_inc[0]=  0.0001f   * clk_tempo_f;
-  thea_inc[1]=  0.000100002f * clk_tempo_f;
-  thea_inc[2]=  0.000100003f * clk_tempo_f;
-  thea_inc[3]=  0.000100005f * clk_tempo_f;
-  thea_inc[4]=  0.000100007f * clk_tempo_f;
-  thea_inc[5]=  0.000100009f * clk_tempo_f;
+  thea_inc[1]=  0.0001002f * clk_tempo_f;
+  thea_inc[2]=  0.0001003f * clk_tempo_f;
+  thea_inc[3]=  0.0001007f * clk_tempo_f;
+  thea_inc[4]=  0.0001011f * clk_tempo_f;
+  thea_inc[5]=  0.0001017f * clk_tempo_f;
 
   sq_TRS[0]= 0.0f;
-  sq_TRS[1]= 3.0f;
-  sq_TRS[2]= -3.0f;
-  sq_TRS[3]= -3.0f;
-  sq_TRS[4]= 3.0f;
-  sq_TRS[5]= 3.0f;
+  sq_TRS[1]= 0.0f;
+  sq_TRS[2]= 0.0f;
+  sq_TRS[3]= 0.0f;
+  sq_TRS[4]= 0.0f;
+  sq_TRS[5]= 0.0f;
 
   //delayMicroseconds(1);
 
   // LED from CLK Input
   digitalWrite(PB31,digitalRead(PB01));
+
+  // LPF Button
+  if(!digitalRead(PA21)){
+    PORT->Group[PORTA].DIRSET.reg = 1ul << 19;
+    pinMode(PA13,OUTPUT);    pinMode(PA14,OUTPUT); 
+    pinMode(PA15,OUTPUT);    pinMode(PA16,OUTPUT); 
+    pinMode(PA17,OUTPUT);    pinMode(PA18,OUTPUT); 
+  }else{
+    pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
+    pinMode(PA15,INPUT);     pinMode(PA16,INPUT); 
+    pinMode(PA17,INPUT);     pinMode(PA18,INPUT); 
+  }
 
   // LED2
   // digitalWrite(PB00,false);

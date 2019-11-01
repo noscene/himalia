@@ -141,6 +141,15 @@ extern "C"
 #define PA14 3
 #define PA10 19
 
+#define PA13 0
+#define PA16 72
+#define PA17 73
+#define PA18 37
+#define PA21 8
+
+
+
+
 // CS42448
 #define CS42448_RESET PB15
 #define CS42448_ADDR  0x48
