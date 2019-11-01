@@ -69,6 +69,10 @@ void dump_sector(uint32_t sector) {
 }
 
 
+float pitches[1024];
+
+
+
 void setup() {
   //put your setup code here, to run once:
   Serial.begin(115200);
@@ -96,9 +100,16 @@ void setup() {
 
   pinMode(PA22,OUTPUT); // PWM OUT
 
-
-
   pinMode(PB01,INPUT_PULLUP); // SQR1
+
+
+  // gen Table
+  for(uint16_t i = 0 ; i < 1024 ; i ++){
+    float clk_tempo_f = (float)i / 128.0f - 4.0f;
+    pitches[i] = pow(12,clk_tempo_f);
+  }
+
+
 
 
   dacInit();
@@ -131,14 +142,14 @@ LFSR lsfr1(0xA1e);
 
 float thea[6]     = { 0.0  , 0.0    , 0.0    , 0.0    , 0.0    , 0.0   };
 float thea_inc[6] = { 0.001, 0.00101, 0.00102, 0.00105, 0.00107, 0.00109};
-float sq_TRS[6]   = { 0.0  ,0.5     ,0.0     ,0.2     ,0.0     ,0.1};
+float sq_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
 
 void renderAudio() {
   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
   // SuperSQUARE Ramps
   for(int i = 0 ; i < 6 ; i++){
-    thea[i]+=thea_inc[i];//  * clk_tempo_f;
-    if(thea[i]>1.0) thea[i]-=2.0;
+    thea[i]+=thea_inc[i];
+    if(thea[i]>1.0f) thea[i]-=2.0f;
   }
   if(thea[0]>sq_TRS[0])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 19; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 19;
   if(thea[1]>sq_TRS[1])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 12;
@@ -148,11 +159,10 @@ void renderAudio() {
   if(thea[5]>sq_TRS[5])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 12;
 
   // Noise
-  //  if(!DAC->SYNCBUSY.bit.DATA0)
+  // if(!DAC->SYNCBUSY.bit.DATA0)
   DAC->DATA[0].reg = lsfr1.next();
-
-  //  if(!DAC->SYNCBUSY.bit.DATA1)
-  DAC->DATA[1].reg = (thea[1] + 1.0) * 16000;   // 0V
+  // if(!DAC->SYNCBUSY.bit.DATA1)
+  DAC->DATA[1].reg = (thea[1] + 1.0f) * 16000.0f;   // 0V
 
   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
@@ -160,43 +170,28 @@ void renderAudio() {
 
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  /*
-  Serial.print("Enter the sector number to dump: ");
-  //while( !Serial.available() ) delay(10);
-  int sector = Serial.parseInt();
-  Serial.println(sector); // echo
-  if ( sector < flash.size()/512 ) {
-    dump_sector(sector);
-  }else{
-    Serial.println("Invalid sector number");
-    dump_sector(sector);
-  }
-  Serial.println();
-  delay(10); // a bit of delay
+  uint16_t clk_tempo = analogRead(PB03);            // read pitch
+  float clk_tempo_f = pitches[clk_tempo & 0x03ff];  // Limit 1024 array size
 
-  Serial.println("erase chip.....");
-  if (!flash.eraseChip()) {
-    Serial.println("Failed to erase chip!");
-  }
+  // float clk_tempo_f = (float)clk_tempo / 128.0f - 4.0f;
+  // clk_tempo_f = clk_tempo_f * clk_tempo_f;
+  // Compute a Lookup Table
+  // http://teropa.info/blog/2016/08/10/frequency-and-pitch.html
+  // clk_tempo_f = pow(12,clk_tempo_f);
 
-  flash.waitUntilReady();
-  Serial.println("Successfully erased chip!");
-*/
+  thea_inc[0]=  0.0001f   * clk_tempo_f;
+  thea_inc[1]=  0.000100002f * clk_tempo_f;
+  thea_inc[2]=  0.000100003f * clk_tempo_f;
+  thea_inc[3]=  0.000100005f * clk_tempo_f;
+  thea_inc[4]=  0.000100007f * clk_tempo_f;
+  thea_inc[5]=  0.000100009f * clk_tempo_f;
 
-
-
-  int clk_tempo = analogRead(PB03);
-  float clk_tempo_f = (float)clk_tempo / 500.0f;
-  clk_tempo_f = clk_tempo_f * clk_tempo_f * clk_tempo_f;
-
-  thea_inc[0]=  0.001f   * clk_tempo_f;
-  thea_inc[1]=  0.00102f * clk_tempo_f;
-  thea_inc[2]=  0.00103f * clk_tempo_f;
-  thea_inc[3]=  0.00105f * clk_tempo_f;
-  thea_inc[4]=  0.00107f * clk_tempo_f;
-  thea_inc[5]=  0.00109f * clk_tempo_f;
-
+  sq_TRS[0]= 0.0f;
+  sq_TRS[1]= 3.0f;
+  sq_TRS[2]= -3.0f;
+  sq_TRS[3]= -3.0f;
+  sq_TRS[4]= 3.0f;
+  sq_TRS[5]= 3.0f;
 
   //delayMicroseconds(1);
 
@@ -204,14 +199,7 @@ void loop() {
   digitalWrite(PB31,digitalRead(PB01));
 
   // LED2
-  digitalWrite(PB00,false);
-  digitalWrite(PB00,true);
-
-  // int adc09 = analogRead(14);
-  // int adc10 = analogRead(15);
-
-  // Write SAW to DAC
-
-  // while (DAC->SYNCBUSY.bit.DATA0);
+  // digitalWrite(PB00,false);
+  // digitalWrite(PB00,true);
 
 }
