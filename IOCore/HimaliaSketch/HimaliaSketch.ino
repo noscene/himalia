@@ -9,7 +9,7 @@
 
 
 PA22 RandomOut    PWM Out ?
-PA02 NoiseOut     DAC0
+PA02 SQROut       DAC0
 PA05 SampleOut    DAC1
 
 PA19 SQ1 OUT  PA18 FilterCap1
@@ -137,6 +137,9 @@ void setup() {
   zt4.enable(true);
 }
 
+//
+//  NoiseGenerator
+//
 class LFSR {
   private:
   uint16_t reg;
@@ -150,9 +153,17 @@ class LFSR {
 };
 LFSR lsfr1(0xA1e);
 
+
+
+//
+//  AUDIO RENDERER
+//
 float thea[6]     = { 0.0  , 0.0    , 0.0    , 0.0    , 0.0    , 0.0   };
 float thea_inc[6] = { 0.001, 0.00101, 0.00102, 0.00105, 0.00107, 0.00109};
 float sq_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
+float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001011f,0.0001017f};
+float thea_noise  = 0.0f;
+float inc_noise  = 0.001f;
 
 void renderAudio() {
   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
@@ -168,9 +179,15 @@ void renderAudio() {
   if(thea[4]>sq_TRS[4])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 13; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 13;
   if(thea[5]>sq_TRS[5])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 12;
 
+  thea_noise+=inc_noise;
+  if(thea_noise>1.0f){
+    thea_noise-=2.0f;
+    DAC->DATA[0].reg = lsfr1.next();
+  }
+
+
   // Noise
   // if(!DAC->SYNCBUSY.bit.DATA0)
-  DAC->DATA[0].reg = lsfr1.next();
   // if(!DAC->SYNCBUSY.bit.DATA1)
   DAC->DATA[1].reg = (thea[1] + 1.0f) * 16000.0f;   // 0V
 
@@ -180,8 +197,68 @@ void renderAudio() {
 
 
 void loop() {
-  uint16_t clk_tempo = analogRead(PB03);            // read pitch
+
+
+  uint16_t clk_noise = analogRead(PB03);            // read pitch
+  float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 1024 array size
+  inc_noise = 0.01f * clk_noise_f;
+  
+
+  uint16_t clk_tempo = analogRead(PB08);            // read pitch
   float clk_tempo_f = pitches[clk_tempo & 0x03ff];  // Limit 1024 array size
+
+
+
+
+  thea_inc[0]=  spreads[0] * clk_tempo_f;
+  thea_inc[1]=  spreads[1] * clk_tempo_f;
+  thea_inc[2]=  spreads[2] * clk_tempo_f;
+  thea_inc[3]=  spreads[3] * clk_tempo_f;
+  thea_inc[4]=  spreads[4] * clk_tempo_f;
+  thea_inc[5]=  spreads[5] * clk_tempo_f;
+
+  // 0x01fc...0x02f4  dec: 508...756
+  uint16_t spread = (analogRead(PB09) - 512 ) >> 4 ;
+  // Serial.println(spread,HEX);
+  if(spread > 30 ) spread = 0;
+  if(spread > 15 ) spread = 15;
+  switch(spread){
+    case 0:
+      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= -3.0f;  sq_TRS[3]= 3.0f;  sq_TRS[4]= -3.0f;  sq_TRS[5]= 3.0f;
+      spreads[0]= 0.0001f;  spreads[1]= 0.0001f; spreads[2]= 0.0001f; spreads[3]= 0.0001f; spreads[4]= 0.0001f; spreads[5]= 0.0001f;
+      thea[1] = thea[0]; // sync phases
+      break;
+    case 1:
+      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= -3.0f;  sq_TRS[5]= 3.0f;
+      spreads[0]= 0.0001f;  spreads[1]= 0.0001f; spreads[2]= 0.0001f; spreads[3]= 0.0001f; spreads[4]= 0.0001f; spreads[5]= 0.0001f;
+      thea[1] = thea[0];    thea[2] = thea[0];   thea[3] = thea[0]; 
+      break;
+    case 2:
+      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= -3.0f;  sq_TRS[5]= 3.0f;
+      spreads[0]= 0.0001f;  spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
+      break;
+    case 3:
+      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;  spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
+      break;
+    case 4:
+      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;  spreads[1]= 0.0001007f; spreads[2]= 0.0001013f; spreads[3]= 0.0001025f; spreads[4]= 0.0001047f; spreads[5]= 0.0001093f;
+      break;
+    case 5:
+      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;  spreads[1]= 0.0001013f; spreads[2]= 0.0001023f; spreads[3]= 0.0001043f; spreads[4]= 0.0001072f; spreads[5]= 0.0001151f;
+      break;      
+    case 6:
+      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;  spreads[1]= 0.0001025f; spreads[2]= 0.0001051f; spreads[3]= 0.0001103f; spreads[4]= 0.0001201f; spreads[5]= 0.0001405f;
+      break;  
+
+  }
+
+
+  // TODO: listen Serial or Midi for WaveUpload
+
 
   // float clk_tempo_f = (float)clk_tempo / 128.0f - 4.0f;
   // clk_tempo_f = clk_tempo_f * clk_tempo_f;
@@ -189,19 +266,9 @@ void loop() {
   // http://teropa.info/blog/2016/08/10/frequency-and-pitch.html
   // clk_tempo_f = pow(12,clk_tempo_f);
 
-  thea_inc[0]=  0.0001f   * clk_tempo_f;
-  thea_inc[1]=  0.0001002f * clk_tempo_f;
-  thea_inc[2]=  0.0001003f * clk_tempo_f;
-  thea_inc[3]=  0.0001007f * clk_tempo_f;
-  thea_inc[4]=  0.0001011f * clk_tempo_f;
-  thea_inc[5]=  0.0001017f * clk_tempo_f;
 
-  sq_TRS[0]= 0.0f;
-  sq_TRS[1]= 0.0f;
-  sq_TRS[2]= 0.0f;
-  sq_TRS[3]= 0.0f;
-  sq_TRS[4]= 0.0f;
-  sq_TRS[5]= 0.0f;
+
+  
 
   //delayMicroseconds(1);
 
