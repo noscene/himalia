@@ -5,6 +5,9 @@
 #include "SdFat.h"
 #include "Adafruit_SPIFlash.h"
 
+//#include "snare_verb01.h"
+//#include "techno_06.h"
+#include "aif16_2.h"
 /*
 
 
@@ -189,7 +192,21 @@ void renderAudio() {
   // Noise
   // if(!DAC->SYNCBUSY.bit.DATA0)
   // if(!DAC->SYNCBUSY.bit.DATA1)
-  DAC->DATA[1].reg = (thea[1] + 1.0f) * 16000.0f;   // 0V
+  // sox https://dsp.stackexchange.com/questions/41536/convert-16-bit-wav-file-to-12-bit-raw-audio-file
+
+
+  // Byte Order is wrong!!! need insert a byte in front of header!!!
+
+  const  uint32_t sample_len = _Users_svenbraun_Downloads_Inst_1_bip_1_aif_len / 2;
+  static uint32_t sample_idx=0;
+  int sample_h = ((short int*)&_Users_svenbraun_Downloads_Inst_1_bip_1_aif)[sample_idx];
+  sample_h+=0x7fff;
+  // uint8_t sample_l = (uint8_t)_Users_svenbraun_Downloads_Inst_1_bip_aif[sample_idx+1];
+  sample_idx+=2;
+  if(sample_idx>= sample_len) sample_idx=0;
+
+  DAC->DATA[1].reg = (uint16_t)sample_h >> 4;   // 16 to 12 Bit!!!!
+  // DAC->DATA[1].reg = (thea[1] + 1.0f) * 16000.0f;   // 0V
 
   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
