@@ -2,7 +2,7 @@
 FROM ubuntu:bionic
 MAINTAINER Sven Braun <s.braun@mobileonly.com>
 
-RUN export DEBIAN_FRONTEND="noninteractive" && apt-get update  && apt-get -y install wget vim git curl python3 && \
+RUN export DEBIAN_FRONTEND="noninteractive" && apt-get update  && apt-get -y install wget vim git curl python3 sox && \
 cd && \
 git clone https://github.com/microsoft/uf2 && \
 curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/local/bin sh && \

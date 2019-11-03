@@ -8,6 +8,7 @@
 //#include "snare_verb01.h"
 //#include "techno_06.h"
 #include "aif16_2.h"
+#include "t1.h"
 /*
 
 
@@ -122,9 +123,6 @@ void setup() {
     pitches[i] = pow(12,clk_tempo_f);
   }
 
-
-
-
   dacInit();
   DAC->DATA[0].reg = 2048;   // ca 1.5V
   while (DAC->SYNCBUSY.bit.DATA0);
@@ -192,21 +190,17 @@ void renderAudio() {
   // Noise
   // if(!DAC->SYNCBUSY.bit.DATA0)
   // if(!DAC->SYNCBUSY.bit.DATA1)
-  // sox https://dsp.stackexchange.com/questions/41536/convert-16-bit-wav-file-to-12-bit-raw-audio-file
 
+  // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
+  // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
+  // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
 
-  // Byte Order is wrong!!! need insert a byte in front of header!!!
-
-  const  uint32_t sample_len = _Users_svenbraun_Downloads_Inst_1_bip_1_aif_len / 2;
+  const  uint32_t sample_len = t1_raw_len / 2;
   static uint32_t sample_idx=0;
-  int sample_h = ((short int*)&_Users_svenbraun_Downloads_Inst_1_bip_1_aif)[sample_idx];
-  sample_h+=0x7fff;
-  // uint8_t sample_l = (uint8_t)_Users_svenbraun_Downloads_Inst_1_bip_aif[sample_idx+1];
-  sample_idx+=2;
-  if(sample_idx>= sample_len) sample_idx=0;
-
-  DAC->DATA[1].reg = (uint16_t)sample_h >> 4;   // 16 to 12 Bit!!!!
-  // DAC->DATA[1].reg = (thea[1] + 1.0f) * 16000.0f;   // 0V
+  uint16_t sample_h = ((uint16_t*)&t1_raw)[sample_idx];  // extend to 32 Bit
+  sample_idx++;
+  if(sample_idx >= sample_len) sample_idx=0;
+  DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
 
   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
@@ -215,7 +209,6 @@ void renderAudio() {
 
 void loop() {
 
-
   uint16_t clk_noise = analogRead(PB03);            // read pitch
   float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 1024 array size
   inc_noise = 0.01f * clk_noise_f;
@@ -223,9 +216,6 @@ void loop() {
 
   uint16_t clk_tempo = analogRead(PB08);            // read pitch
   float clk_tempo_f = pitches[clk_tempo & 0x03ff];  // Limit 1024 array size
-
-
-
 
   thea_inc[0]=  spreads[0] * clk_tempo_f;
   thea_inc[1]=  spreads[1] * clk_tempo_f;
@@ -283,9 +273,6 @@ void loop() {
   // http://teropa.info/blog/2016/08/10/frequency-and-pitch.html
   // clk_tempo_f = pow(12,clk_tempo_f);
 
-
-
-  
 
   //delayMicroseconds(1);
 
