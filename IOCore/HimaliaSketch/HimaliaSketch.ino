@@ -5,10 +5,13 @@
 #include "SdFat.h"
 #include "Adafruit_SPIFlash.h"
 
+#include "samd51_adc.h"
+
 //#include "snare_verb01.h"
 //#include "techno_06.h"
-#include "aif16_2.h"
-#include "t1.h"
+// #include "aif16_2.h"
+// #include "t1.h"
+#include "noscene_champaign.h"
 /*
 
 
@@ -53,6 +56,7 @@ void TC4_Handler(){
 Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS, PIN_QSPI_IO0, PIN_QSPI_IO1, PIN_QSPI_IO2, PIN_QSPI_IO3);
 Adafruit_SPIFlash flash(&flashTransport);
 
+SAMD51_ADC adc51;
 
 void dump_sector(uint32_t sector) {
   uint8_t buf[512];
@@ -166,6 +170,9 @@ float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001011f,0.00
 float thea_noise  = 0.0f;
 float inc_noise  = 0.001f;
 
+float thea_sample  = 0.0f;
+float inc_sample   = 0.001f;
+
 void renderAudio() {
   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
   // SuperSQUARE Ramps
@@ -187,6 +194,14 @@ void renderAudio() {
   }
 
 
+
+  const float sample_mul = (float)noscene_champaign_raw_len / 2.0f ;
+  thea_sample+=inc_sample*0.001;
+  if(thea_sample>1.0f){
+    thea_sample=0.0f;
+  }
+  uint16_t sample_h = ((uint16_t*)&noscene_champaign_raw)[(uint32_t)(sample_mul * thea_sample)];  // extend to 32 Bit
+  DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
   // Noise
   // if(!DAC->SYNCBUSY.bit.DATA0)
   // if(!DAC->SYNCBUSY.bit.DATA1)
@@ -194,29 +209,37 @@ void renderAudio() {
   // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
   // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
   // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
-
-  const  uint32_t sample_len = t1_raw_len / 2;
+/*
+  const  uint32_t sample_len = noscene_champaign_raw_len / 2;
   static uint32_t sample_idx=0;
-  uint16_t sample_h = ((uint16_t*)&t1_raw)[sample_idx];  // extend to 32 Bit
+  uint16_t sample_h = ((uint16_t*)&noscene_champaign_raw)[sample_idx];  // extend to 32 Bit
   sample_idx++;
   if(sample_idx >= sample_len) sample_idx=0;
   DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
-
+*/
   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
 
 
 
 void loop() {
-
-  uint16_t clk_noise = analogRead(PB03);            // read pitch
+  // S/H Speed
+  uint16_t clk_noise = adc51.readAnalog(PB03,ADC_Channel15,false);   // analogRead(PB03);            // read pitch
   float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 1024 array size
   inc_noise = 0.01f * clk_noise_f;
-  
+  if(inc_noise>2.0f) inc_noise=1.9f;
+  if(inc_noise<0.000001f) inc_noise=0.000001f;
 
-  uint16_t clk_tempo = analogRead(PB08);            // read pitch
-  float clk_tempo_f = pitches[clk_tempo & 0x03ff];  // Limit 1024 array size
+  // SAMPLE Speed
+  uint16_t clk_sample = adc51.readAnalog(PB06,ADC_Channel8,true);  
+  float clk_sample_f = pitches[(clk_sample >> 2) & 0x03ff];  // Limit 1024 array size
+  inc_sample = clk_sample_f * 0.01f;
+  if(inc_sample>1.0f) inc_sample=1.0f;
+  if(inc_sample<0.000001f) inc_sample=0.000001f;
 
+  // SQR Speed
+  uint16_t clk_tempo = adc51.readAnalog(PB08,ADC_Channel2,false);  // analogRead(PB08);            // read pitch
+  float clk_tempo_f = pitches[(clk_tempo >> 2) & 0x03ff];  // Limit 1024 array size
   thea_inc[0]=  spreads[0] * clk_tempo_f;
   thea_inc[1]=  spreads[1] * clk_tempo_f;
   thea_inc[2]=  spreads[2] * clk_tempo_f;
@@ -224,44 +247,63 @@ void loop() {
   thea_inc[4]=  spreads[4] * clk_tempo_f;
   thea_inc[5]=  spreads[5] * clk_tempo_f;
 
+  // SQR Programm
   // 0x01fc...0x02f4  dec: 508...756
-  uint16_t spread = (analogRead(PB09) - 512 ) >> 4 ;
-  // Serial.println(spread,HEX);
+  uint16_t spread_adc = adc51.readAnalog(PB09,ADC_Channel3,false);
+  uint16_t spread = ((spread_adc >> 2)  - 512 ) >> 4 ;
+  // Serial.println(spread_adc,HEX);
+ 
   if(spread > 30 ) spread = 0;
   if(spread > 15 ) spread = 15;
+  // Mute as PRG 0 !!! -> easy to sequence
+  // 4 Bit Noise as PRG 15 ????
+  // 
   switch(spread){
-    case 0:
-      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= -3.0f;  sq_TRS[3]= 3.0f;  sq_TRS[4]= -3.0f;  sq_TRS[5]= 3.0f;
-      spreads[0]= 0.0001f;  spreads[1]= 0.0001f; spreads[2]= 0.0001f; spreads[3]= 0.0001f; spreads[4]= 0.0001f; spreads[5]= 0.0001f;
+    case 0: // all Off
+      sq_TRS[0]= -3.0f;      sq_TRS[1]= 3.0f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
+      thea[1] = thea[0]; // sync phases
+      break;    
+    case 1:
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
       thea[1] = thea[0]; // sync phases
       break;
-    case 1:
-      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= -3.0f;  sq_TRS[5]= 3.0f;
-      spreads[0]= 0.0001f;  spreads[1]= 0.0001f; spreads[2]= 0.0001f; spreads[3]= 0.0001f; spreads[4]= 0.0001f; spreads[5]= 0.0001f;
-      thea[1] = thea[0];    thea[2] = thea[0];   thea[3] = thea[0]; 
-      break;
     case 2:
-      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= -3.0f;  sq_TRS[5]= 3.0f;
-      spreads[0]= 0.0001f;  spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= -3.0f;       sq_TRS[5]= 3.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;    spreads[4]= 0.0001f;    spreads[5]= 0.0001f;
+      thea[1] = thea[0];     thea[2] = thea[0];      thea[3] = thea[0]; 
       break;
     case 3:
-      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;  spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= -3.0f;       sq_TRS[5]= 3.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
       break;
     case 4:
-      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;  spreads[1]= 0.0001007f; spreads[2]= 0.0001013f; spreads[3]= 0.0001025f; spreads[4]= 0.0001047f; spreads[5]= 0.0001093f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
       break;
     case 5:
-      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;  spreads[1]= 0.0001013f; spreads[2]= 0.0001023f; spreads[3]= 0.0001043f; spreads[4]= 0.0001072f; spreads[5]= 0.0001151f;
-      break;      
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001007f; spreads[2]= 0.0001013f; spreads[3]= 0.0001025f; spreads[4]= 0.0001047f; spreads[5]= 0.0001093f;
+      break;
     case 6:
-      sq_TRS[0]= 0.0f;      sq_TRS[1]= 0.0f;  sq_TRS[2]= 0.0f;  sq_TRS[3]= 0.0f;  sq_TRS[4]= 0.0f;  sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;  spreads[1]= 0.0001025f; spreads[2]= 0.0001051f; spreads[3]= 0.0001103f; spreads[4]= 0.0001201f; spreads[5]= 0.0001405f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001013f; spreads[2]= 0.0001023f; spreads[3]= 0.0001043f; spreads[4]= 0.0001072f; spreads[5]= 0.0001151f;
+      break;      
+    case 7:
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 0.0001f;   spreads[1]= 0.0001025f; spreads[2]= 0.0001051f; spreads[3]= 0.0001103f; spreads[4]= 0.0001201f; spreads[5]= 0.0001405f;
       break;  
 
   }
+
+
+
+
+
+
+
+
 
 
   // TODO: listen Serial or Midi for WaveUpload
