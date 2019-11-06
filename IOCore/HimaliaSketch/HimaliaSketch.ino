@@ -14,7 +14,6 @@
 #include "noscene_champaign.h"
 /*
 
-
 PA22 RandomOut    PWM Out ?
 PA02 SQROut       DAC0
 PA05 SampleOut    DAC1
@@ -83,6 +82,20 @@ float pitches[1024];
 
 void setup() {
   //put your setup code here, to run once:
+
+  // First try remove DC from Ouputs  
+  dacInit();
+  DAC->DATA[0].reg = 2048;   // ca 1.5V
+  DAC->DATA[1].reg = 2048;
+  while (DAC->SYNCBUSY.bit.DATA0);
+
+
+  // gen Table
+  for(uint16_t i = 0 ; i < 1024 ; i ++){
+    float clk_tempo_f = (float)i / 128.0f - 4.0f;
+    pitches[i] = pow(12,clk_tempo_f);
+  }
+
   Serial.begin(115200);
   // while ( !Serial ) delay(10);   // wait for native usb
   Serial.println("Himalia");
@@ -93,12 +106,12 @@ void setup() {
   Serial.print("JEDEC ID: "); Serial.println(flash.getJEDECID(), HEX);
   Serial.print("Flash size: "); Serial.println(flash.size());
 
-  pinMode(PA13,OUTPUT); digitalWrite(PA13,false);
-  pinMode(PA14,OUTPUT); digitalWrite(PA14,false);
-  pinMode(PA15,OUTPUT); digitalWrite(PA15,false);
-  pinMode(PA16,OUTPUT); digitalWrite(PA16,false);
-  pinMode(PA17,OUTPUT); digitalWrite(PA17,false);
-  pinMode(PA18,OUTPUT); digitalWrite(PA18,false);
+  pinMode(PA13,INPUT); digitalWrite(PA13,false);
+  pinMode(PA14,INPUT); digitalWrite(PA14,false);
+  pinMode(PA15,INPUT); digitalWrite(PA15,false);
+  pinMode(PA16,INPUT); digitalWrite(PA16,false);
+  pinMode(PA17,INPUT); digitalWrite(PA17,false);
+  pinMode(PA18,INPUT); digitalWrite(PA18,false);
 
 
 
@@ -118,21 +131,9 @@ void setup() {
 
   pinMode(PB01,INPUT_PULLUP); // SQR1
   pinMode(PA21,INPUT_PULLUP); // SQR1
-  
-
-
-  // gen Table
-  for(uint16_t i = 0 ; i < 1024 ; i ++){
-    float clk_tempo_f = (float)i / 128.0f - 4.0f;
-    pitches[i] = pow(12,clk_tempo_f);
-  }
-
-  dacInit();
-  DAC->DATA[0].reg = 2048;   // ca 1.5V
-  while (DAC->SYNCBUSY.bit.DATA0);
 
   // create Time for AudioSamples
-  zt4.configure(TC_CLOCK_PRESCALER_DIV8, // prescaler
+  zt4.configure(TC_CLOCK_PRESCALER_DIV4, // prescaler
                 TC_COUNTER_SIZE_8BIT,   // bit width of timer/counter
                 TC_WAVE_GENERATION_MATCH_PWM  // match style
                 );
@@ -159,64 +160,105 @@ class LFSR {
 LFSR lsfr1(0xA1e);
 
 
+// 8-Bit OSC Stuff
+#define OSC8BIT_PRG_COUNT 16
+typedef unsigned char (*zm8BitPrg) (uint16_t t);
+// https://git.metanohi.name/bytebeat.git/raw/c2f559b6efac4b03a0233e5797437af30601c170/clive.c
+static unsigned char render_prg0(uint16_t t){ return  t; }
+static unsigned char render_prg1(uint16_t t){ return  t & t >> 8; }
+static unsigned char render_prg2(uint16_t t){ return  t*(42&t>>10); }     // viznut
+static unsigned char render_prg3(uint16_t t){ return  (t*5&t>>7)|(t*3&t>>10); }
+
+static unsigned char render_prg4(uint16_t t){ return  t|t%255|t%257; } //Hard CPU!!!
+static unsigned char render_prg5(uint16_t t){ return  t>>6&1?t>>5:-t>>4; }
+static unsigned char render_prg6(uint16_t t){ return  t*(t>>9|t>>13)&16; }
+static unsigned char render_prg7(uint16_t t){ return  t*(((t>>9)^((t>>9)-1)^1)%13); }
+
+static unsigned char render_prg8(uint16_t t){  return  t*(t>>8*((t>>15)|(t>>8))&(20|(t>>19)*5>>t|(t>>3))); }
+static unsigned char render_prg9(uint16_t t){  return  t*(t>>((t>>9)|(t>>8))&(63&(t>>4))); }
+static unsigned char render_prg10(uint16_t t){ return (t>>6|t|t>>(t>>16))*10+((t>>11)&7); }
+static unsigned char render_prg11(uint16_t t){ return (t|(t>>9|t>>7))*t&(t>>11|t>>9); }
+
+static unsigned char render_prg12(uint16_t t){ return t*(((t>>12)|(t>>8))&(63&(t>>4))); }
+static unsigned char render_prg13(uint16_t t){ return t*(t^t+(t>>15|1)^(t-1280^t)>>10); }
+static unsigned char render_prg14(uint16_t t){ return (t&t%255)-(t*3&t>>13&t>>6); }
+static unsigned char render_prg15(uint16_t t){ return (t+(t>>2)|(t>>5))+(t>>3)|((t>>13)|(t>>7)|(t>>11)); }
+
+const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render_prg2, render_prg3,
+                                                render_prg4, render_prg5, render_prg6, render_prg7,
+                                                render_prg8, render_prg9, render_prg10,render_prg11,
+                                                render_prg12,render_prg13,render_prg14,render_prg15
+                                                };
+
+
+
 
 //
 //  AUDIO RENDERER
 //
-float thea[6]     = { 0.0  , 0.0    , 0.0    , 0.0    , 0.0    , 0.0   };
-float thea_inc[6] = { 0.001, 0.00101, 0.00102, 0.00105, 0.00107, 0.00109};
-float sq_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
-float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001011f,0.0001017f};
+volatile float thea[6]     = { 0.0  , 0.0    , 0.0    , 0.0    , 0.0    , 0.0   };
+volatile float thea_inc[6] = { 0.001, 0.00101, 0.00102, 0.00105, 0.00107, 0.00109};
+volatile float sq_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
+volatile float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001011f,0.0001017f};
+
 float thea_noise  = 0.0f;
-float inc_noise  = 0.001f;
+volatile float inc_noise   = 0.001f;
 
 float thea_sample  = 0.0f;
-float inc_sample   = 0.001f;
+volatile float inc_sample   = 0.001f;
+
+int prg8=0;
 
 void renderAudio() {
   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
+
   // SuperSQUARE Ramps
+  bool sqr_pins[6];
   for(int i = 0 ; i < 6 ; i++){
     thea[i]+=thea_inc[i];
     if(thea[i]>1.0f) thea[i]-=2.0f;
+    sqr_pins[i] = (thea[i]>sq_TRS[i]); 
   }
-  if(thea[0]>sq_TRS[0])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 19; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 19;
-  if(thea[1]>sq_TRS[1])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 12;
-  if(thea[2]>sq_TRS[2])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 15; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 15;
-  if(thea[3]>sq_TRS[3])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 14; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 14;
-  if(thea[4]>sq_TRS[4])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 13; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 13;
-  if(thea[5]>sq_TRS[5])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 12;
+  // Pin assign signals
+  if(sqr_pins[0])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 19; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 19;
+  if(sqr_pins[1])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 12;
+  if(sqr_pins[2])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 15; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 15;
+  if(sqr_pins[3])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 14; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 14;
+  if(sqr_pins[4])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 13; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 13;
+  if(sqr_pins[5])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 12;
 
+
+
+  // Noise / S/H Output
   thea_noise+=inc_noise;
-  if(thea_noise>1.0f){
+  while(thea_noise>1.0f){
     thea_noise-=2.0f;
-    DAC->DATA[0].reg = lsfr1.next();
+   // DAC->DATA[0].reg = lsfr1.next();
   }
 
+  // 8 Bit OSC
+  static float t=0;
+  zm8BitPrg  callBackPrg = prgList[prg8];
+  t+=inc_noise * 1024.0f;
+  if(t>65535.0f) t=0.0f;
+  DAC->DATA[0].reg = callBackPrg((uint16_t)t) << 4;
 
 
+  // Sample Ouput
+  // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
+  // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
+  // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
+  // if(!DAC->SYNCBUSY.bit.DATA0)
+  // if(!DAC->SYNCBUSY.bit.DATA1)
   const float sample_mul = (float)noscene_champaign_raw_len / 2.0f ;
-  thea_sample+=inc_sample*0.001;
+  thea_sample+=inc_sample;
   if(thea_sample>1.0f){
     thea_sample=0.0f;
   }
   uint16_t sample_h = ((uint16_t*)&noscene_champaign_raw)[(uint32_t)(sample_mul * thea_sample)];  // extend to 32 Bit
   DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
-  // Noise
-  // if(!DAC->SYNCBUSY.bit.DATA0)
-  // if(!DAC->SYNCBUSY.bit.DATA1)
 
-  // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
-  // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
-  // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
-/*
-  const  uint32_t sample_len = noscene_champaign_raw_len / 2;
-  static uint32_t sample_idx=0;
-  uint16_t sample_h = ((uint16_t*)&noscene_champaign_raw)[sample_idx];  // extend to 32 Bit
-  sample_idx++;
-  if(sample_idx >= sample_len) sample_idx=0;
-  DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
-*/
+
   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
 
@@ -233,7 +275,7 @@ void loop() {
   // SAMPLE Speed
   uint16_t clk_sample = adc51.readAnalog(PB06,ADC_Channel8,true);  
   float clk_sample_f = pitches[(clk_sample >> 2) & 0x03ff];  // Limit 1024 array size
-  inc_sample = clk_sample_f * 0.01f;
+  inc_sample = clk_sample_f * 0.00001f;
   if(inc_sample>1.0f) inc_sample=1.0f;
   if(inc_sample<0.000001f) inc_sample=0.000001f;
 
@@ -258,6 +300,8 @@ void loop() {
   // Mute as PRG 0 !!! -> easy to sequence
   // 4 Bit Noise as PRG 15 ????
   // 
+
+  prg8 = spread;
   switch(spread){
     case 0: // all Off
       sq_TRS[0]= -3.0f;      sq_TRS[1]= 3.0f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
@@ -323,7 +367,7 @@ void loop() {
 
   // LPF Button
   if(!digitalRead(PA21)){
-    PORT->Group[PORTA].DIRSET.reg = 1ul << 19;
+    // PORT->Group[PORTA].DIRSET.reg = 1ul << 19;
     pinMode(PA13,OUTPUT);    pinMode(PA14,OUTPUT); 
     pinMode(PA15,OUTPUT);    pinMode(PA16,OUTPUT); 
     pinMode(PA17,OUTPUT);    pinMode(PA18,OUTPUT); 
