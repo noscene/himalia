@@ -1,16 +1,11 @@
 
 #include <Wire.h>
-#include "wiring_private.h" // pinPeripheral() function
+#include "wiring_private.h"
 #include "Adafruit_ZeroTimer.h"
 #include "SdFat.h"
 #include "Adafruit_SPIFlash.h"
 
 #include "samd51_adc.h"
-
-//#include "snare_verb01.h"
-//#include "techno_06.h"
-// #include "aif16_2.h"
-// #include "t1.h"
 
 
 // const frequency = Math.pow(2, (m - 69) / 12) * 440;
