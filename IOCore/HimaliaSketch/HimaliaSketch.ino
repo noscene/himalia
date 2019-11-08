@@ -24,8 +24,9 @@
 #include "s8.h"
 #include "s9.h"
 #include "s10.h"
-/*
 
+
+/*
 PA22 RandomOut    PWM Out ?
 PA02 SQROut       DAC0
 PA05 SampleOut    DAC1
@@ -253,6 +254,7 @@ void renderAudio() {
   thea_noise+=inc_noise;
   while(thea_noise>1.0f){
     thea_noise-=2.0f;
+    // if(!DAC->SYNCBUSY.bit.DATA0)    
     DAC->DATA[0].reg = lsfr1.next();
   }
 
@@ -263,14 +265,13 @@ void renderAudio() {
     zm8BitPrg  callBackPrg = prgList[prg8];
     t+=inc_8bit * 1024.0f;
     if(t>65535.0f) t=0.0f;
+    // if(!DAC->SYNCBUSY.bit.DATA1)
     DAC->DATA[1].reg = callBackPrg((uint16_t)t) << 4;
   }else{
     // Sample Ouput
     // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
     // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
     // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
-    // if(!DAC->SYNCBUSY.bit.DATA0)
-    // if(!DAC->SYNCBUSY.bit.DATA1)
     const float sample_mul[16] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
                                     (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
                                     (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f,

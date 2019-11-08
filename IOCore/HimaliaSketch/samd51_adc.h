@@ -7,6 +7,9 @@
 //
 //  SAMD ADC Registers
 //
+// on Himalia it produce with ADC_REFCTRL_REFSEL_INTVCC1_Val
+// 2040 .... 3080 with potis
+// 2000 .... 4095 with external CV 
 class SAMD51_ADC {
   private:
   uint16_t reg;
