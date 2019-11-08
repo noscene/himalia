@@ -14,7 +14,7 @@ class SAMD51_ADC {
   SAMD51_ADC() {
     // analogReference(AR_EXTERNAL);
     // analogReadResolution(12);
-    ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val;
+    ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val;  // // 1/1.48 VDDANA = 1/1.48* 3V3 = 2.2297
     while(ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB);
     
     ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;

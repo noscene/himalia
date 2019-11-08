@@ -11,7 +11,24 @@
 //#include "techno_06.h"
 // #include "aif16_2.h"
 // #include "t1.h"
-#include "noscene_champaign.h"
+
+
+// const frequency = Math.pow(2, (m - 69) / 12) * 440;
+// incrementer unipolar = 1/SR * f
+// incrementer unipolar = 2/SR * f 
+
+
+#include "s0.h"
+#include "s1.h"
+#include "s2.h"
+#include "s3.h"
+#include "s4.h"
+#include "s5.h"
+#include "s6.h"
+#include "s7.h"
+#include "s8.h"
+#include "s9.h"
+#include "s10.h"
 /*
 
 PA22 RandomOut    PWM Out ?
@@ -56,6 +73,9 @@ Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS, PIN_QSPI_
 Adafruit_SPIFlash flash(&flashTransport);
 
 SAMD51_ADC adc51;
+// SAMPLE RATE = 48MHz TC / 4 TC_CLOCK_PRESCALER_DIV4 / setPeriodMatch=125  = 96Khz 
+const float samplerate = 48000000.0 / 4.0 / 125.0;
+const float reciprocal_sr = 1.0 / samplerate;
 
 void dump_sector(uint32_t sector) {
   uint8_t buf[512];
@@ -77,8 +97,6 @@ void dump_sector(uint32_t sector) {
 
 
 float pitches[1024];
-
-
 
 void setup() {
   //put your setup code here, to run once:
@@ -138,7 +156,10 @@ void setup() {
                 TC_WAVE_GENERATION_MATCH_PWM  // match style
                 );
 
-  zt4.setPeriodMatch(150, 150, 0); // 1 match, channel 0
+  zt4.setPeriodMatch(125, 125, 0); // 1 match, channel 0
+
+  
+
   zt4.setCallback(true, TC_CALLBACK_CC_CHANNEL0, renderAudio);  // set DAC in the callback
   zt4.enable(true);
 }
@@ -250,12 +271,23 @@ void renderAudio() {
   // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
   // if(!DAC->SYNCBUSY.bit.DATA0)
   // if(!DAC->SYNCBUSY.bit.DATA1)
-  const float sample_mul = (float)noscene_champaign_raw_len / 2.0f ;
+  const float sample_mul[16] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
+                                  (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
+                                  (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f,
+                                  (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f  } ; // 2 bytes  as one sample -> safe as float
+  
+  const uint16_t * samples [16] = { (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
+                                    (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
+                                    (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,
+                                    (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,(uint16_t*)&s10_raw, (uint16_t*)&s10_raw };
+
+  uint16_t samplePrg=prg8; 
+
   thea_sample+=inc_sample;
   if(thea_sample>1.0f){
     thea_sample=0.0f;
   }
-  uint16_t sample_h = ((uint16_t*)&noscene_champaign_raw)[(uint32_t)(sample_mul * thea_sample)];  // extend to 32 Bit
+  uint16_t sample_h = samples[samplePrg][(uint32_t)(sample_mul[samplePrg] * thea_sample)];  // extend to 32 Bit
   DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
 
 
@@ -267,6 +299,11 @@ void renderAudio() {
 void loop() {
   // S/H Speed
   uint16_t clk_noise = adc51.readAnalog(PB03,ADC_Channel15,false);   // analogRead(PB03);            // read pitch
+
+  // Serial.println(clk_noise,DEC);
+  // delay(100);
+
+
   float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 1024 array size
   inc_noise = 0.01f * clk_noise_f;
   if(inc_noise>2.0f) inc_noise=1.9f;
@@ -305,12 +342,12 @@ void loop() {
   switch(spread){
     case 0: // all Off
       sq_TRS[0]= -3.0f;      sq_TRS[1]= 3.0f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
+      spreads[0]= 0.001f;   spreads[1]= 0.001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
       thea[1] = thea[0]; // sync phases
       break;    
     case 1:
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
+      sq_TRS[0]= 0.2f;       sq_TRS[1]= -0.3f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
+      spreads[0]= 0.001f;   spreads[1]= 0.001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
       thea[1] = thea[0]; // sync phases
       break;
     case 2:
@@ -335,8 +372,9 @@ void loop() {
       spreads[0]= 0.0001f;   spreads[1]= 0.0001013f; spreads[2]= 0.0001023f; spreads[3]= 0.0001043f; spreads[4]= 0.0001072f; spreads[5]= 0.0001151f;
       break;      
     case 7:
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001025f; spreads[2]= 0.0001051f; spreads[3]= 0.0001103f; spreads[4]= 0.0001201f; spreads[5]= 0.0001405f;
+    default:
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
+      spreads[0]= 0.001f;    spreads[1]= 0.002f;     spreads[2]= 0.001f * 0.66666f;    spreads[3]= 0.002f*0.66666f; spreads[4]= 0.004f; spreads[5]= 0.008f;
       break;  
 
   }
@@ -368,7 +406,7 @@ void loop() {
   // LPF Button
   if(!digitalRead(PA21)){
     // PORT->Group[PORTA].DIRSET.reg = 1ul << 19;
-    pinMode(PA13,OUTPUT);    pinMode(PA14,OUTPUT); 
+    pinMode(PA13,INPUT);    pinMode(PA14,INPUT); 
     pinMode(PA15,OUTPUT);    pinMode(PA16,OUTPUT); 
     pinMode(PA17,OUTPUT);    pinMode(PA18,OUTPUT); 
   }else{
