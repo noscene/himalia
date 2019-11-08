@@ -149,6 +149,8 @@ void setup() {
 
   pinMode(PB01,INPUT_PULLUP); // SQR1
   pinMode(PA21,INPUT_PULLUP); // SQR1
+  pinMode(PB17,INPUT_PULLUP); // 8Bit or sample Button
+  
 
   // create Time for AudioSamples
   zt4.configure(TC_CLOCK_PRESCALER_DIV4, // prescaler
@@ -225,10 +227,14 @@ volatile float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001
 float thea_noise  = 0.0f;
 volatile float inc_noise   = 0.001f;
 
+volatile float inc_8bit   = 0.001f;
+
 float thea_sample  = 0.0f;
 volatile float inc_sample   = 0.001f;
 
 int prg8=0;
+uint16_t samplePrg;
+bool is_8bitchipmode = false;
 
 void renderAudio() {
   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
@@ -248,47 +254,48 @@ void renderAudio() {
   if(sqr_pins[4])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 13; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 13;
   if(sqr_pins[5])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 12;
 
-
-
   // Noise / S/H Output
   thea_noise+=inc_noise;
   while(thea_noise>1.0f){
     thea_noise-=2.0f;
-   // DAC->DATA[0].reg = lsfr1.next();
+    DAC->DATA[0].reg = lsfr1.next();
   }
 
-  // 8 Bit OSC
-  static float t=0;
-  zm8BitPrg  callBackPrg = prgList[prg8];
-  t+=inc_noise * 1024.0f;
-  if(t>65535.0f) t=0.0f;
-  DAC->DATA[0].reg = callBackPrg((uint16_t)t) << 4;
 
+  if(is_8bitchipmode){
+    // 8 Bit OSC
+    static float t=0;
+    zm8BitPrg  callBackPrg = prgList[prg8];
+    t+=inc_8bit * 1024.0f;
+    if(t>65535.0f) t=0.0f;
+    DAC->DATA[1].reg = callBackPrg((uint16_t)t) << 4;
+  }else{
+    // Sample Ouput
+    // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
+    // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
+    // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
+    // if(!DAC->SYNCBUSY.bit.DATA0)
+    // if(!DAC->SYNCBUSY.bit.DATA1)
+    const float sample_mul[16] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
+                                    (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
+                                    (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f,
+                                    (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f  } ; // 2 bytes  as one sample -> safe as float
+    
+    const uint16_t * samples [16] = { (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
+                                      (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
+                                      (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,
+                                      (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,(uint16_t*)&s10_raw, (uint16_t*)&s10_raw };
+   
 
-  // Sample Ouput
-  // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
-  // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
-  // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
-  // if(!DAC->SYNCBUSY.bit.DATA0)
-  // if(!DAC->SYNCBUSY.bit.DATA1)
-  const float sample_mul[16] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
-                                  (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
-                                  (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f,
-                                  (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f  } ; // 2 bytes  as one sample -> safe as float
-  
-  const uint16_t * samples [16] = { (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
-                                    (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
-                                    (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,
-                                    (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,(uint16_t*)&s10_raw, (uint16_t*)&s10_raw };
-
-  uint16_t samplePrg=prg8; 
-
-  thea_sample+=inc_sample;
-  if(thea_sample>1.0f){
-    thea_sample=0.0f;
+    thea_sample+=inc_sample;
+    if(thea_sample>1.0f){
+      thea_sample=0.0f;
+    }
+    uint16_t sample_h = samples[samplePrg][(uint32_t)(sample_mul[samplePrg] * thea_sample)];  // extend to 32 Bit
+    DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
   }
-  uint16_t sample_h = samples[samplePrg][(uint32_t)(sample_mul[samplePrg] * thea_sample)];  // extend to 32 Bit
-  DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
+
+
 
 
   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
@@ -316,6 +323,12 @@ void loop() {
   if(inc_sample>1.0f) inc_sample=1.0f;
   if(inc_sample<0.000001f) inc_sample=0.000001f;
 
+  // 8Bit ChipMusic Speed
+  inc_8bit = 0.0001f * clk_sample_f;
+
+
+
+
   // SQR Speed
   uint16_t clk_tempo = adc51.readAnalog(PB08,ADC_Channel2,false);  // analogRead(PB08);            // read pitch
   float clk_tempo_f = pitches[(clk_tempo >> 2) & 0x03ff];  // Limit 1024 array size
@@ -325,6 +338,9 @@ void loop() {
   thea_inc[3]=  spreads[3] * clk_tempo_f;
   thea_inc[4]=  spreads[4] * clk_tempo_f;
   thea_inc[5]=  spreads[5] * clk_tempo_f;
+
+
+
 
   // SQR Programm
   // 0x01fc...0x02f4  dec: 508...756
@@ -338,7 +354,7 @@ void loop() {
   // 4 Bit Noise as PRG 15 ????
   // 
 
-  prg8 = spread;
+
   switch(spread){
     case 0: // all Off
       sq_TRS[0]= -3.0f;      sq_TRS[1]= 3.0f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
@@ -380,6 +396,16 @@ void loop() {
   }
 
 
+
+
+  is_8bitchipmode = digitalRead(PB17);
+  uint16_t prg8_smpl_select_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
+  uint16_t prg8_smpl_select = ((prg8_smpl_select_adc >> 2)  - 512 ) >> 4 ;
+  // Serial.println(spread_adc,HEX);
+  if(prg8_smpl_select > 30 ) prg8_smpl_select = 0;
+  if(prg8_smpl_select > 15 ) prg8_smpl_select = 15;
+  prg8 = prg8_smpl_select;
+  samplePrg=prg8_smpl_select; 
 
 
 
