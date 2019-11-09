@@ -24,6 +24,11 @@
 #include "s8.h"
 #include "s9.h"
 #include "s10.h"
+#include "s11.h"
+#include "s12.h"
+#include "s13.h"
+#include "s14.h"
+#include "s15.h"
 
 
 /*
@@ -93,6 +98,7 @@ void dump_sector(uint32_t sector) {
 
 
 float pitches[1024];
+uint8_t sines[256];
 
 void setup() {
   //put your setup code here, to run once:
@@ -103,6 +109,11 @@ void setup() {
   DAC->DATA[1].reg = 2048;
   while (DAC->SYNCBUSY.bit.DATA0);
 
+  // gen sin Table
+  for(uint16_t i = 0 ; i < 256 ; i ++){
+    float phase = (float)i / 256.0f * PI * 2.0f;
+    sines[i] = (sin(phase) + 1.0) * 127.0f; 
+  }
 
   // gen Table
   for(uint16_t i = 0 ; i < 1024 ; i ++){
@@ -184,11 +195,11 @@ LFSR lsfr1(0xA1e);
 typedef unsigned char (*zm8BitPrg) (uint16_t t);
 // https://git.metanohi.name/bytebeat.git/raw/c2f559b6efac4b03a0233e5797437af30601c170/clive.c
 static unsigned char render_prg0(uint16_t t){ return  t; }
-static unsigned char render_prg1(uint16_t t){ return  t & t >> 8; }
+static unsigned char render_prg1(uint16_t t){ return  sines[(t>>8)]; }
 static unsigned char render_prg2(uint16_t t){ return  t*(42&t>>10); }     // viznut
 static unsigned char render_prg3(uint16_t t){ return  (t*5&t>>7)|(t*3&t>>10); }
 
-static unsigned char render_prg4(uint16_t t){ return  t|t%255|t%257; } //Hard CPU!!!
+static unsigned char render_prg4(uint16_t t){ return  t|t%255|t%257; } 
 static unsigned char render_prg5(uint16_t t){ return  t>>6&1?t>>5:-t>>4; }
 static unsigned char render_prg6(uint16_t t){ return  t*(t>>9|t>>13)&16; }
 static unsigned char render_prg7(uint16_t t){ return  t*(((t>>9)^((t>>9)-1)^1)%13); }
@@ -274,13 +285,13 @@ void renderAudio() {
     // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
     const float sample_mul[16] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
                                     (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
-                                    (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f,
-                                    (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f, (float)s10_raw_len / 2.0f  } ; // 2 bytes  as one sample -> safe as float
+                                    (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s11_raw_len / 2.0f,
+                                    (float)s12_raw_len / 2.0f, (float)s13_raw_len / 2.0f, (float)s14_raw_len / 2.0f, (float)s15_raw_len / 2.0f  } ; // 2 bytes  as one sample -> safe as float
     
     const uint16_t * samples [16] = { (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
                                       (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
-                                      (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,
-                                      (uint16_t*)&s10_raw, (uint16_t*)&s10_raw,(uint16_t*)&s10_raw, (uint16_t*)&s10_raw };
+                                      (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s11_raw,
+                                      (uint16_t*)&s12_raw, (uint16_t*)&s13_raw,(uint16_t*)&s14_raw, (uint16_t*)&s15_raw };
    
 
     thea_sample+=inc_sample;
@@ -396,10 +407,11 @@ void loop() {
 
   is_8bitchipmode = digitalRead(PB17);
   uint16_t prg8_smpl_select_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
-  uint16_t prg8_smpl_select = ((prg8_smpl_select_adc >> 2)  - 512 ) >> 4 ;
-  // Serial.println(spread_adc,HEX);
+  int16_t prg8_smpl_select = (prg8_smpl_select_adc - 2048 )  >> 5 ;
   if(prg8_smpl_select > 30 ) prg8_smpl_select = 0;
   if(prg8_smpl_select > 15 ) prg8_smpl_select = 15;
+  if(prg8_smpl_select < 0 ) prg8_smpl_select = 0;
+  // Serial.println(prg8_smpl_select,HEX); delay(100);
   prg8 = prg8_smpl_select;
   samplePrg=prg8_smpl_select; 
 
