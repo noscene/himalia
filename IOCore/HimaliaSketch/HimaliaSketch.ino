@@ -244,7 +244,7 @@ uint16_t samplePrg;
 bool is_8bitchipmode = false;
 
 void renderAudio() {
-  PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
+//  PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
 
   // SuperSQUARE Ramps
   bool sqr_pins[6];
@@ -267,6 +267,10 @@ void renderAudio() {
     thea_noise-=2.0f;
     // if(!DAC->SYNCBUSY.bit.DATA0)    
     DAC->DATA[0].reg = lsfr1.next();
+    static bool noise_led=false;
+    noise_led=!noise_led;
+    if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;     // LED
+    if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
   }
 
 
@@ -305,7 +309,7 @@ void renderAudio() {
 
 
 
-  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
+ // PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
 
 
