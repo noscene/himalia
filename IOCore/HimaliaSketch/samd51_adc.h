@@ -15,7 +15,7 @@ class SAMD51_ADC {
   uint16_t reg;
   public:
 
-  float dacToVoltage[4096];
+  float dacToInc[4096];
 
   SAMD51_ADC() {
     // analogReference(AR_EXTERNAL);
@@ -72,10 +72,10 @@ class SAMD51_ADC {
     for(float vin = -10.0f ; vin < 10.0f ; vin+=0.001f){
       uint16_t adc_v = ADCValueByVolt(voltageDivider(vin));
       if(adc_v < 4096){
-        dacToVoltage[adc_v]=vin;  // Umrechnungs Table ADC wert in Input Voltage
         // A4 = 440Hz = 2.75V as a reference point,
         float frq = 440.0f / pow(2.0f, 2.75) * pow(2.0f, vin);
         float thea_inc = 2.0f / samplingrate * frq;
+        dacToInc[adc_v]=thea_inc;  // Umrechnungs Table ADC wert in Input Voltage
         /** /
         Serial.print(vin,DEC);
         Serial.print(" -> ");

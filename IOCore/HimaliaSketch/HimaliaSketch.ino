@@ -324,10 +324,11 @@ void loop() {
   // delay(100);
 
 
-  float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 1024 array size
-  inc_noise = 0.01f * clk_noise_f;
-  if(inc_noise>2.0f) inc_noise=1.9f;
-  if(inc_noise<0.00001f) inc_noise=0.00001f;
+  // float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 4096 array size
+  inc_noise = adc51.dacToInc[clk_noise & 0x0fff ];
+  // inc_noise = 0.01f * clk_noise_f;
+  // if(inc_noise>2.0f) inc_noise=1.9f;
+  // if(inc_noise<0.00001f) inc_noise=0.00001f;
 
   // SAMPLE Speed
   uint16_t clk_sample = adc51.readAnalog(PB06,ADC_Channel8,true);  
@@ -344,13 +345,14 @@ void loop() {
 
   // SQR Speed
   uint16_t clk_tempo = adc51.readAnalog(PB08,ADC_Channel2,false);  // analogRead(PB08);            // read pitch
-  float clk_tempo_f = pitches[(clk_tempo >> 2) & 0x03ff];  // Limit 1024 array size
-  thea_inc[0]=  spreads[0] * clk_tempo_f;
-  thea_inc[1]=  spreads[1] * clk_tempo_f;
-  thea_inc[2]=  spreads[2] * clk_tempo_f;
-  thea_inc[3]=  spreads[3] * clk_tempo_f;
-  thea_inc[4]=  spreads[4] * clk_tempo_f;
-  thea_inc[5]=  spreads[5] * clk_tempo_f;
+  float inc_sqr = adc51.dacToInc[clk_tempo & 0x0fff ];
+  // float clk_tempo_f = pitches[(clk_tempo >> 2) & 0x03ff];  // Limit 1024 array size
+  thea_inc[0]=  spreads[0] * inc_sqr;
+  thea_inc[1]=  spreads[1] * inc_sqr;
+  thea_inc[2]=  spreads[2] * inc_sqr;
+  thea_inc[3]=  spreads[3] * inc_sqr;
+  thea_inc[4]=  spreads[4] * inc_sqr;
+  thea_inc[5]=  spreads[5] * inc_sqr;
 
 
 
@@ -371,39 +373,39 @@ void loop() {
   switch(spread){
     case 0: // all Off
       sq_TRS[0]= -3.0f;      sq_TRS[1]= 3.0f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
-      spreads[0]= 0.001f;   spreads[1]= 0.001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
+      spreads[0]= 1.001f;   spreads[1]= 1.001f;    spreads[2]= 1.0001f;    spreads[3]= 1.0001f;   spreads[4]= 1.0001f;     spreads[5]= 1.0001f;
       thea[1] = thea[0]; // sync phases
       break;    
     case 1:
       sq_TRS[0]= 0.2f;       sq_TRS[1]= -0.3f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
-      spreads[0]= 0.001f;   spreads[1]= 0.001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;   spreads[4]= 0.0001f;     spreads[5]= 0.0001f;
+      spreads[0]= 1.001f;   spreads[1]= 1.001f;    spreads[2]= 1.0001f;    spreads[3]= 1.0001f;   spreads[4]= 1.0001f;     spreads[5]= 1.0001f;
       thea[1] = thea[0]; // sync phases
       break;
     case 2:
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= -3.0f;       sq_TRS[5]= 3.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001f;    spreads[2]= 0.0001f;    spreads[3]= 0.0001f;    spreads[4]= 0.0001f;    spreads[5]= 0.0001f;
+      spreads[0]= 1.0001f;   spreads[1]= 1.0001f;    spreads[2]= 1.0001f;    spreads[3]= 1.0001f;    spreads[4]= 1.0001f;    spreads[5]= 1.0001f;
       thea[1] = thea[0];     thea[2] = thea[0];      thea[3] = thea[0]; 
       break;
     case 3:
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= -3.0f;       sq_TRS[5]= 3.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
+      spreads[0]= 1.0001f;   spreads[1]= 1.0001002f; spreads[2]= 1.0001005f; spreads[3]= 1.0001009f; spreads[4]= 1.0001013f; spreads[5]= 1.0001019f;
       break;
     case 4:
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001002f; spreads[2]= 0.0001005f; spreads[3]= 0.0001009f; spreads[4]= 0.0001013f; spreads[5]= 0.0001019f;
+      spreads[0]= 1.0001f;   spreads[1]= 1.0001002f; spreads[2]= 1.0001005f; spreads[3]= 1.0001009f; spreads[4]= 1.0001013f; spreads[5]= 1.0001019f;
       break;
     case 5:
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001007f; spreads[2]= 0.0001013f; spreads[3]= 0.0001025f; spreads[4]= 0.0001047f; spreads[5]= 0.0001093f;
+      spreads[0]= 1.0001f;   spreads[1]= 1.0001007f; spreads[2]= 1.0001013f; spreads[3]= 1.0001025f; spreads[4]= 1.0001047f; spreads[5]= 1.0001093f;
       break;
     case 6:
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 0.0001f;   spreads[1]= 0.0001013f; spreads[2]= 0.0001023f; spreads[3]= 0.0001043f; spreads[4]= 0.0001072f; spreads[5]= 0.0001151f;
+      spreads[0]= 1.0001f;   spreads[1]= 1.0001013f; spreads[2]= 1.0001023f; spreads[3]= 1.0001043f; spreads[4]= 1.0001072f; spreads[5]= 1.0001151f;
       break;      
     case 7:
     default:
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 0.001f;    spreads[1]= 0.002f;     spreads[2]= 0.001f * 0.66666f;    spreads[3]= 0.002f*0.66666f; spreads[4]= 0.004f; spreads[5]= 0.008f;
+      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
       break;  
   }
 
