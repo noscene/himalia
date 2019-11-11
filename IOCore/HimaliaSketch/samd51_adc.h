@@ -14,6 +14,9 @@ class SAMD51_ADC {
   private:
   uint16_t reg;
   public:
+
+  float dacToVoltage[4096];
+
   SAMD51_ADC() {
     // analogReference(AR_EXTERNAL);
     // analogReadResolution(12);
@@ -45,6 +48,50 @@ class SAMD51_ADC {
     ADC1->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
     // while(ADC1->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB);     // HÄNGT!!!!!
   };
+
+
+  // https://electronics.stackexchange.com/questions/278050/making-voltmeter-accepting-bipolar-input-voltage-using-a-microcontroller
+  float voltageDivider(float vIn){
+    const float r1 = 20000.0f;
+    const float r2 = 6800.0f;
+    const float r3 = 10000.0f;
+    const float vref = 3.3f;
+    const float dby = 1.0f / ( 1.0f / r1 + 1.0f / r2 + 1.0f / r3 );
+    const float utx = vref / r2;
+    return ( vIn / r1 + utx) *  dby;
+  };
+
+  uint16_t ADCValueByVolt(float v){
+    const float adc_ref = 3.3f;
+    const float bitdeep = 4096.0f;
+    return  (v / adc_ref * bitdeep);
+  };
+
+  void createADCMap(){
+    const float samplingrate=96000.0f;
+    for(float vin = -10.0f ; vin < 10.0f ; vin+=0.001f){
+      uint16_t adc_v = ADCValueByVolt(voltageDivider(vin));
+      if(adc_v < 4096){
+        dacToVoltage[adc_v]=vin;  // Umrechnungs Table ADC wert in Input Voltage
+        // A4 = 440Hz = 2.75V as a reference point,
+        float frq = 440.0f / pow(2.0f, 2.75) * pow(2.0f, vin);
+        float thea_inc = 2.0f / samplingrate * frq;
+        /** /
+        Serial.print(vin,DEC);
+        Serial.print(" -> ");
+        Serial.print(adc_v);
+        Serial.print(" -> ");
+        Serial.print(thea_inc);
+        Serial.print(" -> ");
+        Serial.println(frq);
+        /**/
+      }
+    }
+  };
+
+
+
+
 
 
 

@@ -10,7 +10,7 @@
 
 // const frequency = Math.pow(2, (m - 69) / 12) * 440;
 // incrementer unipolar = 1/SR * f
-// incrementer unipolar = 2/SR * f 
+// incrementer bipolar = 2/SR * f 
 
 
 #include "s0.h"
@@ -139,7 +139,7 @@ void setup() {
   pinMode(PA18,INPUT); digitalWrite(PA18,false);
 
 
-
+  adc51.createADCMap();
 
   pinMode(PA23,OUTPUT); // LED
   pinMode(PB00,OUTPUT); // LED
@@ -309,8 +309,10 @@ void renderAudio() {
 
 
 
- // PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
+  // PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
+
+
 
 
 
@@ -325,7 +327,7 @@ void loop() {
   float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 1024 array size
   inc_noise = 0.01f * clk_noise_f;
   if(inc_noise>2.0f) inc_noise=1.9f;
-  if(inc_noise<0.000001f) inc_noise=0.000001f;
+  if(inc_noise<0.00001f) inc_noise=0.00001f;
 
   // SAMPLE Speed
   uint16_t clk_sample = adc51.readAnalog(PB06,ADC_Channel8,true);  
@@ -403,7 +405,6 @@ void loop() {
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
       spreads[0]= 0.001f;    spreads[1]= 0.002f;     spreads[2]= 0.001f * 0.66666f;    spreads[3]= 0.002f*0.66666f; spreads[4]= 0.004f; spreads[5]= 0.008f;
       break;  
-
   }
 
 
@@ -443,8 +444,12 @@ void loop() {
 
   // LPF Button
   if(!digitalRead(PA21)){
-    // PORT->Group[PORTA].DIRSET.reg = 1ul << 19;
-    pinMode(PA13,INPUT);    pinMode(PA14,INPUT); 
+    // https://www.avrfreaks.net/forum/samd21-how-enable-pullups-inputs
+    // PORT->Group[PORTA].DIRSET.reg = 1ul << 19; // SET OUTPUT
+    // PORT->Group[PORTA].DIRCLR.reg = 1ul << 19; // SET INPUT
+    // PORT->Group[port].PINCFG[pin].reg |= PORT_PINCFG_PULLEN); for later setup pull resistors
+
+    pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
     pinMode(PA15,OUTPUT);    pinMode(PA16,OUTPUT); 
     pinMode(PA17,OUTPUT);    pinMode(PA18,OUTPUT); 
   }else{
