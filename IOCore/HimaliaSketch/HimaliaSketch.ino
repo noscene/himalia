@@ -70,13 +70,9 @@ void TC4_Handler(){
   Adafruit_ZeroTimer::timerHandler(4);
 }
 
+/*
 Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS, PIN_QSPI_IO0, PIN_QSPI_IO1, PIN_QSPI_IO2, PIN_QSPI_IO3);
 Adafruit_SPIFlash flash(&flashTransport);
-
-SAMD51_ADC adc51;
-// SAMPLE RATE = 48MHz TC / 4 TC_CLOCK_PRESCALER_DIV4 / setPeriodMatch=125  = 96Khz 
-const float samplerate = 48000000.0 / 4.0 / 125.0;
-const float reciprocal_sr = 1.0 / samplerate;
 
 void dump_sector(uint32_t sector) {
   uint8_t buf[512];
@@ -95,6 +91,17 @@ void dump_sector(uint32_t sector) {
     Serial.println();
   }
 }
+*/
+
+
+
+
+SAMD51_ADC adc51;
+// SAMPLE RATE = 48MHz TC / 4 TC_CLOCK_PRESCALER_DIV4 / setPeriodMatch=125  = 96Khz 
+const float samplerate = 48000000.0 / 4.0 / 125.0;
+const float reciprocal_sr = 1.0 / samplerate;
+
+
 
 
 float pitches[1024];
@@ -125,11 +132,12 @@ void setup() {
   // while ( !Serial ) delay(10);   // wait for native usb
   Serial.println("Himalia");
 
+  /*
   flash.begin();
-  
   Serial.println("Adafruit Serial Flash Info example");
   Serial.print("JEDEC ID: "); Serial.println(flash.getJEDECID(), HEX);
   Serial.print("Flash size: "); Serial.println(flash.size());
+  */
 
   pinMode(PA13,INPUT); digitalWrite(PA13,false);
   pinMode(PA14,INPUT); digitalWrite(PA14,false);
@@ -447,7 +455,7 @@ void loop() {
   int16_t prg8_smpl_select = (prg8_smpl_select_adc - 2048 )  >> 5 ;
   if(prg8_smpl_select > 30 ) prg8_smpl_select = 0;
   if(prg8_smpl_select > 15 ) prg8_smpl_select = 15;
-  if(prg8_smpl_select < 0 ) prg8_smpl_select = 0;
+  if(prg8_smpl_select < 0 )  prg8_smpl_select = 0;
   // Serial.println(prg8_smpl_select,HEX); delay(100);
   prg8 = prg8_smpl_select;
   samplePrg=prg8_smpl_select; 
@@ -471,8 +479,17 @@ void loop() {
 
   //delayMicroseconds(1);
 
-  // LED from CLK Input
-  digitalWrite(PB31,digitalRead(PB01));
+  // LED from CLK Input (SampleTrigger)
+
+
+  // digitalWrite(PB31,digitalRead(PB01));
+  // faster way forward digital Pin input to output
+  if ( (PORT->Group[PORTB].IN.reg & (1ul << 1)) != 0 ){
+    PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
+  }else{
+    PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;
+  }
+
 
   // LPF Button
   if(!digitalRead(PA21)){
@@ -481,13 +498,29 @@ void loop() {
     // PORT->Group[PORTA].DIRCLR.reg = 1ul << 19; // SET INPUT
     // PORT->Group[port].PINCFG[pin].reg |= PORT_PINCFG_PULLEN); for later setup pull resistors
 
-    pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
-    pinMode(PA15,OUTPUT);    pinMode(PA16,OUTPUT); 
-    pinMode(PA17,OUTPUT);    pinMode(PA18,OUTPUT); 
-  }else{
-    pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
+    // pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
+    // pinMode(PA15,OUTPUT);    pinMode(PA16,OUTPUT); 
+    // pinMode(PA17,OUTPUT);    pinMode(PA18,OUTPUT); 
+
+    PORT->Group[PORTA].DIRSET.reg = 1ul << 13;
+    PORT->Group[PORTA].DIRSET.reg = 1ul << 14;
+    PORT->Group[PORTA].DIRSET.reg = 1ul << 15;
+    PORT->Group[PORTA].DIRSET.reg = 1ul << 16;
+    PORT->Group[PORTA].DIRSET.reg = 1ul << 17;
+    PORT->Group[PORTA].DIRSET.reg = 1ul << 18;
+
+  }else{  // Filter Off
+    PORT->Group[PORTA].DIRCLR.reg = 1ul << 13;
+    PORT->Group[PORTA].DIRCLR.reg = 1ul << 14;
+    PORT->Group[PORTA].DIRCLR.reg = 1ul << 15;
+    PORT->Group[PORTA].DIRCLR.reg = 1ul << 16;
+    PORT->Group[PORTA].DIRCLR.reg = 1ul << 17;
+    PORT->Group[PORTA].DIRCLR.reg = 1ul << 18;
+
+/*    pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
     pinMode(PA15,INPUT);     pinMode(PA16,INPUT); 
     pinMode(PA17,INPUT);     pinMode(PA18,INPUT); 
+    */
   }
 
   // LED2
