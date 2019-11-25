@@ -385,6 +385,10 @@ void loop() {
   if(spread > 15 ) spread = 15;
   // Mute as PRG 0 !!! -> easy to sequence
   // 4 Bit Noise as PRG 15 ????
+  static int dsbug = 0;
+  dsbug++;
+  if(!(dsbug % 100))
+    Serial.println(spread,DEC);
 
   switch(spread){
     case 0: // all Off
@@ -394,9 +398,9 @@ void loop() {
       thea[1] = thea[0]; // sync phases
       break;    
     case 1:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
+      flt_TRS[0]= -3.0f;    flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;      flt_TRS[3]= 3.0f;      flt_TRS[4]= -3.0f;       flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.2f;      sq_TRS[1]= -0.3f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
-      spreads[0]= 1.001f;   spreads[1]= 1.001f;    spreads[2]= 1.0001f;    spreads[3]= 1.0001f;   spreads[4]= 1.0001f;     spreads[5]= 1.0001f;
+      spreads[0]= 1.001f;   spreads[1]= 1.001f;      spreads[2]= 1.0001f;    spreads[3]= 1.0001f;   spreads[4]= 1.0001f;     spreads[5]= 1.0001f;
                             thea[1] = thea[0]; // sync phases
       break;
     case 2:
@@ -416,25 +420,28 @@ void loop() {
       spreads[0]= 1.0f;      spreads[1]= 1.0f;       spreads[2]= 0.416666f;  spreads[3]= 0.416666f;  spreads[4]= 0.583333f;    spreads[5]= 0.583333f;
       break;
     case 5:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
+      flt_TRS[0]= -3.0f;      flt_TRS[1]= -3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0001f;   spreads[1]= 1.0001007f; spreads[2]= 1.0001013f; spreads[3]= 1.0001025f; spreads[4]= 1.0001047f; spreads[5]= 1.0001093f;
+      spreads[0]= 1.0f;    spreads[1]= 0.5;     spreads[2]= 1.20f;    spreads[3]= 1.50f;            spreads[4]= 1.875f;         spreads[5]= 1.8f;
       break;
-    case 6:
+    case 6: // SUS2
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0001f;   spreads[1]= 1.0001013f; spreads[2]= 1.0001023f; spreads[3]= 1.0001043f; spreads[4]= 1.0001072f; spreads[5]= 1.0001151f;
+      spreads[0]= 1.0f;    spreads[1]= 1.0;     spreads[2]= 1.33333f;    spreads[3]= 1.33333333f;        spreads[4]= 1.5f; spreads[5]= 1.5f;
       break;      
-    case 7:
+    case 7: // Dur
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 1.2f;    spreads[1]= 1.2;     spreads[2]= 1.5f;    spreads[3]= 1.5f; spreads[4]= 1.8f; spreads[5]= 1.8f;
       break;  
-    case 8:
+    case 8: // Moll 6/5 
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f * 0.66666f * 2.0f; spreads[5]= 1.008f  * 0.66666f * 2.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;    spreads[1]= 1.0;     spreads[2]= 1.20f;    spreads[3]= 1.20f; spreads[4]= 1.5f; spreads[5]= 1.5f;
       break;  
+
+
+
     case 9:
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.2f;       sq_TRS[1]= -0.2f;        sq_TRS[2]= 0.8f;        sq_TRS[3]= 0.2f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
@@ -448,7 +455,7 @@ void loop() {
     case 11:
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      spreads[0]= 1.001f;    spreads[1]= 5.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
       break;  
     case 12:
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
@@ -458,22 +465,19 @@ void loop() {
     case 13:
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      spreads[0]= 1.001f;    spreads[1]= 2.002f;     spreads[2]= 3.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
       break;  
     case 14:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
-      sq_TRS[0]= 0.9f;       sq_TRS[1]= 0.1f;        sq_TRS[2]= 0.9f;        sq_TRS[3]= 0.1f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= -3.0f;       flt_TRS[3]= -3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.31f;     spreads[2]= 1.47f;            spreads[3]= 1.67f;      spreads[4]= 1.53f;        spreads[5]= 1.13f;
       break;  
     case 15:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.11f;     spreads[2]= 1.211f;            spreads[3]= 1.314f;      spreads[4]= 1.379f;        spreads[5]= 1.401f;
       break;  
   }
-
-
-
 
   is_8bitchipmode = digitalRead(PB17);
   uint16_t prg8_smpl_select_adc = adc51.readAnalog(PB05,ADC_Channel7,true);

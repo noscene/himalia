@@ -25,6 +25,8 @@ public:
     SPIClass * SPIfpga;
     ICEClass(){};
     
+
+
     // see Board variant.h
     uint16_t  ice_cs    = ICE_CS;
     uint16_t  ice_mosi  = ICE_MOSI;
@@ -49,6 +51,9 @@ public:
         return sendSPI((data >> 8) & 0xff , data & 0xff );
     }
     
+
+
+
     // send 2 bytes to FPGA
     uint16_t sendSPI(uint8_t  adr , uint8_t  txdata) {
         digitalWrite(ice_cs, LOW);
