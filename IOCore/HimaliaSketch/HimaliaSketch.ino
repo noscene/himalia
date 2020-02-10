@@ -448,34 +448,34 @@ void loop() {
       spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f * 0.66666f * 2.0f; spreads[5]= 1.008f  * 0.66666f * 2.0f;
       break;  
     case 10:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;       flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      spreads[0]= 1.0f;      spreads[1]= 1.249f;     spreads[2]= 1.667f;     spreads[3]= 2.0f;       spreads[4]= 2.503f;     spreads[5]= 3.004f;
       break;  
     case 11:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;       flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 5.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      spreads[0]= 1.0f;      spreads[1]= 1.249f;     spreads[2]= 1.506f;     spreads[3]= 1.874f;     spreads[4]= 2.252f;     spreads[5]= 3.07f;
       break;  
     case 12:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;       flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 1.002f;     spreads[2]= 1.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      spreads[0]= 1.001f;    spreads[1]= 2.0f;       spreads[2]= 3.0f;       spreads[3]= 4.0f;       spreads[4]= 5.0f;       spreads[5]= 6.0f;
       break;  
     case 13:
-      flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
-      spreads[0]= 1.001f;    spreads[1]= 2.002f;     spreads[2]= 3.001f * 0.66666f;    spreads[3]= 1.002f*0.66666f; spreads[4]= 1.004f; spreads[5]= 1.008f;
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;       flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.067f;     spreads[2]= 1.099f;     spreads[3]= 1.111f;     spreads[4]= 1.222f;     spreads[5]= 1.417f;
       break;  
     case 14:
-      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= -3.0f;       flt_TRS[3]= -3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0f;      spreads[1]= 1.31f;     spreads[2]= 1.47f;            spreads[3]= 1.67f;      spreads[4]= 1.53f;        spreads[5]= 1.13f;
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.534f;     spreads[2]= 2.199f;     spreads[3]= 2.352f;     spreads[4]= 2.377f;      spreads[5]= 2.614f;
       break;  
     case 15:
       flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
-      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0f;      spreads[1]= 1.11f;     spreads[2]= 1.211f;            spreads[3]= 1.314f;      spreads[4]= 1.379f;        spreads[5]= 1.401f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.11f;      spreads[2]= 1.211f;     spreads[3]= 1.314f;     spreads[4]= 1.379f;      spreads[5]= 1.401f;
       break;  
   }
 
