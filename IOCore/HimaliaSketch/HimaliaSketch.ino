@@ -32,6 +32,7 @@
 
 
 /*
+
 PA22 RandomOut    PWM Out ?
 PA02 SQROut       DAC0
 PA05 SampleOut    DAC1
@@ -63,7 +64,14 @@ PB00 LED CLK
 PB31 LED SampleChange 
 
 PA23 LED SMD Inline (BootLoader)
+
 */
+
+
+
+
+
+
 Adafruit_ZeroTimer zt4 = Adafruit_ZeroTimer(4);
 
 void TC4_Handler(){
@@ -165,6 +173,8 @@ void setup() {
   pinMode(PB01,INPUT_PULLUP); // SQR1
   pinMode(PA21,INPUT_PULLUP); // SQR1
   pinMode(PB17,INPUT_PULLUP); // 8Bit or sample Button
+  pinMode(PB16,INPUT_PULLUP); // Manual Trigger
+  pinMode(PB23,INPUT_PULLUP); // Manual Trigger
   
 
   // create Time for AudioSamples
@@ -232,7 +242,7 @@ const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render
 
 
 //
-//  AUDIO RENDERER
+//  AUDIO RENDERER Parms
 //
 volatile float thea[6]     = { 0.0  , 0.0    , 0.0    , 0.0    , 0.0    , 0.0   };
 volatile float thea_inc[6] = { 0.001, 0.00101, 0.00102, 0.00105, 0.00107, 0.00109};
@@ -252,8 +262,11 @@ int prg8=0;
 uint16_t samplePrg;
 bool is_8bitchipmode = false;
 
+//
+//  AUDIO RENDERER callback for a single sample
+//
 void renderAudio() {
-//  PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
+  //  PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
 
   // Noise / S/H Output
   thea_noise+=inc_noise;
@@ -263,12 +276,12 @@ void renderAudio() {
     DAC->DATA[0].reg = lsfr1.next();
     static bool noise_led=false;
     noise_led=!noise_led;
-    if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;     // LED
+    if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
     if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
   }
 
 
-  // SuperSQUARE Ramps
+  // SuperSQUARE Ramps generate binary pattern
   bool sqr_pins[6];
   bool flt_pins[6];
   for(int i = 0 ; i < 6 ; i++){
@@ -277,7 +290,7 @@ void renderAudio() {
     sqr_pins[i] = (thea[i]>sq_TRS[i]); 
     flt_pins[i] = (thea[i]>flt_TRS[i]); 
   }
-  // Pin assign signals
+  // Pin assign signals as fast as possible for generated binary pattern
   if(sqr_pins[0])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 19; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 19;
   if(sqr_pins[1])  PORT->Group[PORTA].OUTCLR.reg = 1ul << 12; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 12;
   if(sqr_pins[2])  PORT->Group[PORTB].OUTCLR.reg = 1ul << 15; else   PORT->Group[PORTB].OUTSET.reg = 1ul << 15;
@@ -291,10 +304,6 @@ void renderAudio() {
   if(flt_pins[3])  PORT->Group[PORTA].DIRSET.reg = 1ul << 16; else   PORT->Group[PORTA].DIRCLR.reg = 1ul << 16;
   if(flt_pins[4])  PORT->Group[PORTA].DIRSET.reg = 1ul << 17; else   PORT->Group[PORTA].DIRCLR.reg = 1ul << 17;
   if(flt_pins[5])  PORT->Group[PORTA].DIRSET.reg = 1ul << 18; else   PORT->Group[PORTA].DIRCLR.reg = 1ul << 18;
-
-
-
-
 
   if(is_8bitchipmode){
     // 8 Bit OSC
@@ -328,9 +337,6 @@ void renderAudio() {
     DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
   }
 
-
-
-
   // PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
 }
 
@@ -339,32 +345,77 @@ void renderAudio() {
 
 
 void loop() {
-  // S/H Speed
-  uint16_t clk_noise = adc51.readAnalog(PB03,ADC_Channel15,false);   // analogRead(PB03);            // read pitch
+  // S/H Speed -------------------------------------------------------
+  
+  uint16_t noise_pitch_jack = adc51.readAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
+  uint16_t noise_pitch_poti = adc51.readAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
+
+  uint16_t noise_pitch_sum =  noise_pitch_poti;
+  if(noise_pitch_jack<4095){  // if is connected
+     noise_pitch_sum += noise_pitch_jack;
+  }
+
+  if(noise_pitch_sum > 4095){
+    noise_pitch_sum = 4095;
+  }
+  inc_noise = adc51.adcToInc[noise_pitch_sum];
+
+  // -----------------------------------------------------------------
+
+
+
+
+
+  // uint16_t clk_sqr = adc51.readAnalog(PB03,ADC_Channel15,false);     // Regler unten Links
+  // inc_sqr = adc51.adcToInc[clk_noise & 0x0fff ];
+
 
   // Serial.println(clk_noise,DEC);
   // delay(100);
 
 
   // float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 4096 array size
-  inc_noise = adc51.adcToInc[clk_noise & 0x0fff ];
   // inc_noise = 0.01f * clk_noise_f;
   // if(inc_noise>2.0f) inc_noise=1.9f;
   // if(inc_noise<0.00001f) inc_noise=0.00001f;
 
   // SAMPLE Speed
-  uint16_t clk_sample = adc51.readAnalog(PB06,ADC_Channel8,true);  
-  float clk_sample_f = pitches[(clk_sample >> 2) & 0x03ff];  // Limit 1024 array size
-  inc_sample = clk_sample_f * 0.00001f;
+  uint16_t sample_pitch_poti = adc51.readAnalog(PA07,ADC_Channel7,false); 
+  uint16_t sample_pitch_jack = adc51.readAnalog(PA06,ADC_Channel8,true);  
+
+  uint16_t sample_pitch_sum =  sample_pitch_poti;
+  if(sample_pitch_jack<4095){  // if is connected
+     sample_pitch_sum += sample_pitch_jack;
+  }
+  if(sample_pitch_sum > 4095){
+    sample_pitch_sum = 4095;
+  }
+  
+  float clk_sample_f = pitches[(sample_pitch_sum >> 4) & 0x03ff];  // Limit 1024 array size
+  inc_sample = clk_sample_f ;
   if(inc_sample>1.0f) inc_sample=1.0f;
-  if(inc_sample<0.000001f) inc_sample=0.000001f;
+  if(inc_sample<0.000001f) inc_sample=0.000001f;  
+
 
   // 8Bit ChipMusic Speed
-  inc_8bit = 0.0001f * clk_sample_f;
+  inc_8bit =  inc_sample;
+
+  // PB08,ADC_Channel2,false
 
   // SQR Speed
-  uint16_t clk_tempo = adc51.readAnalog(PB08,ADC_Channel2,false);  // analogRead(PB08);            // read pitch
-  float inc_sqr = adc51.adcToInc[clk_tempo & 0x0fff ];
+  uint16_t sqr_pitch_poti = adc51.readAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
+  uint16_t sqr_pitch_jack = adc51.readAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
+
+  uint16_t sqr_pitch_sum =  sqr_pitch_poti;
+  if(sqr_pitch_jack<4095){  // if is connected
+     sqr_pitch_sum += sqr_pitch_jack;
+  }
+
+  if(sqr_pitch_sum > 4095){
+    sqr_pitch_sum = 4095;
+  }
+
+  float inc_sqr = adc51.adcToInc[sqr_pitch_sum];
   thea_inc[0]=  spreads[0] * inc_sqr;
   thea_inc[1]=  spreads[1] * inc_sqr;
   thea_inc[2]=  spreads[2] * inc_sqr;
@@ -373,23 +424,25 @@ void loop() {
   thea_inc[5]=  spreads[5] * inc_sqr;
 
 
-
-
   // SQR Programm
   // 0x01fc...0x02f4  dec: 508...756
-  uint16_t spread_adc = adc51.readAnalog(PB09,ADC_Channel3,false);
-  uint16_t spread = ((spread_adc >> 2)  - 512 ) >> 4 ;
+  // Neu: 240 .... 3840
+  uint16_t spread_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
+  int16_t spread = spread_adc - 255 ;
+  if(spread <= 0){
+    spread=0;
+  }else{
+    spread = spread / 238;
+  }
   // Serial.println(spread_adc,HEX);
  
-  if(spread > 30 ) spread = 0;
+//if(spread > 30 ) spread = 0;
   if(spread > 15 ) spread = 15;
   // Mute as PRG 0 !!! -> easy to sequence
   // 4 Bit Noise as PRG 15 ????
-  static int dsbug = 0;
-  dsbug++;
-  if(!(dsbug % 100))
-    Serial.println(spread,DEC);
 
+ 
+ 
   switch(spread){
     case 0: // all Off
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
@@ -479,81 +532,41 @@ void loop() {
       break;  
   }
 
-  is_8bitchipmode = digitalRead(PB17);
-  uint16_t prg8_smpl_select_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
-  int16_t prg8_smpl_select = (prg8_smpl_select_adc - 2048 )  >> 5 ;
+  is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);        // digitalRead(PB17);
+//  uint16_t prg8_smpl_select_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
+  uint16_t prg8_smpl_select_adc = adc51.readAnalog(PA06,ADC_Channel6,false);
+  int16_t prg8_smpl_select = (prg8_smpl_select_adc - 255 )  >> 8 ;
   if(prg8_smpl_select > 30 ) prg8_smpl_select = 0;
   if(prg8_smpl_select > 15 ) prg8_smpl_select = 15;
   if(prg8_smpl_select < 0 )  prg8_smpl_select = 0;
-  // Serial.println(prg8_smpl_select,HEX); delay(100);
   prg8 = prg8_smpl_select;
   samplePrg=prg8_smpl_select; 
 
 
 
 
-
-
-
-
-  // TODO: listen Serial or Midi for WaveUpload
-
-
-  // float clk_tempo_f = (float)clk_tempo / 128.0f - 4.0f;
-  // clk_tempo_f = clk_tempo_f * clk_tempo_f;
-  // Compute a Lookup Table
-  // http://teropa.info/blog/2016/08/10/frequency-and-pitch.html
-  // clk_tempo_f = pow(12,clk_tempo_f);
-
-
-  //delayMicroseconds(1);
-
-  // LED from CLK Input (SampleTrigger)
-
-
-  // digitalWrite(PB31,digitalRead(PB01));
-  // faster way forward digital Pin input to output
-  if ( (PORT->Group[PORTB].IN.reg & (1ul << 1)) != 0 ){
-    PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
-  }else{
+  // Forward Button + Trigger to LED
+  if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
+        (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
     PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;
+  } else {
+    PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
   }
+
 
 /*
-  // LPF Button
-  if(!digitalRead(PA21)){
-    // https://www.avrfreaks.net/forum/samd21-how-enable-pullups-inputs
-    // PORT->Group[PORTA].DIRSET.reg = 1ul << 19; // SET OUTPUT
-    // PORT->Group[PORTA].DIRCLR.reg = 1ul << 19; // SET INPUT
-    // PORT->Group[port].PINCFG[pin].reg |= PORT_PINCFG_PULLEN); for later setup pull resistors
-
-    // pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
-    // pinMode(PA15,OUTPUT);    pinMode(PA16,OUTPUT); 
-    // pinMode(PA17,OUTPUT);    pinMode(PA18,OUTPUT); 
-
-    PORT->Group[PORTA].DIRSET.reg = 1ul << 13;
-    PORT->Group[PORTA].DIRSET.reg = 1ul << 14;
-    PORT->Group[PORTA].DIRSET.reg = 1ul << 15;
-    PORT->Group[PORTA].DIRSET.reg = 1ul << 16;
-    PORT->Group[PORTA].DIRSET.reg = 1ul << 17;
-    PORT->Group[PORTA].DIRSET.reg = 1ul << 18;
-
-  }else{  // Filter Off
-    PORT->Group[PORTA].DIRCLR.reg = 1ul << 13;
-    PORT->Group[PORTA].DIRCLR.reg = 1ul << 14;
-    PORT->Group[PORTA].DIRCLR.reg = 1ul << 15;
-    PORT->Group[PORTA].DIRCLR.reg = 1ul << 16;
-    PORT->Group[PORTA].DIRCLR.reg = 1ul << 17;
-    PORT->Group[PORTA].DIRCLR.reg = 1ul << 18;
-
-    //  pinMode(PA13,INPUT);     pinMode(PA14,INPUT); 
-   // pinMode(PA15,INPUT);     pinMode(PA16,INPUT); 
-   // pinMode(PA17,INPUT);     pinMode(PA18,INPUT); 
-   
+  static int dsbug = 0;
+  dsbug++;
+  if(!(dsbug % 500)){
+    Serial.print(spread_adc,DEC);
+    Serial.print(" ");
+    Serial.print(inc_sample,DEC);
+    Serial.print(" ");
+    Serial.print(prg8_smpl_select,HEX);
+    Serial.print(" ");
+    Serial.println(spread,DEC);
   }
 */
-  // LED2
-  // digitalWrite(PB00,false);
-  // digitalWrite(PB00,true);
+
 
 }
