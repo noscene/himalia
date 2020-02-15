@@ -149,6 +149,7 @@ extern "C"
 #define PB06 25
 
 #define PB23 74
+#define PB07 75
 
 
 

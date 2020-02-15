@@ -209,7 +209,7 @@ LFSR lsfr1(0xA1e);
 
 
 // 8-Bit OSC Stuff
-#define OSC8BIT_PRG_COUNT 16
+#define OSC8BIT_PRG_COUNT 32
 typedef unsigned char (*zm8BitPrg) (uint16_t t);
 // https://git.metanohi.name/bytebeat.git/raw/c2f559b6efac4b03a0233e5797437af30601c170/clive.c
 static unsigned char render_prg0(uint16_t t){ return  t; }
@@ -233,6 +233,11 @@ static unsigned char render_prg14(uint16_t t){ return (t&t%255)-(t*3&t>>13&t>>6)
 static unsigned char render_prg15(uint16_t t){ return (t+(t>>2)|(t>>5))+(t>>3)|((t>>13)|(t>>7)|(t>>11)); }
 
 const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render_prg2, render_prg3,
+                                                render_prg4, render_prg5, render_prg6, render_prg7,
+                                                render_prg8, render_prg9, render_prg10,render_prg11,
+                                                render_prg12,render_prg13,render_prg14,render_prg15,
+
+                                                render_prg0, render_prg1, render_prg2, render_prg3,
                                                 render_prg4, render_prg5, render_prg6, render_prg7,
                                                 render_prg8, render_prg9, render_prg10,render_prg11,
                                                 render_prg12,render_prg13,render_prg14,render_prg15
@@ -318,15 +323,27 @@ void renderAudio() {
     // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
     // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
     // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
-    const float sample_mul[16] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
+    const float sample_mul[32] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
                                     (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
                                     (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s11_raw_len / 2.0f,
-                                    (float)s12_raw_len / 2.0f, (float)s13_raw_len / 2.0f, (float)s14_raw_len / 2.0f, (float)s15_raw_len / 2.0f  } ; // 2 bytes  as one sample -> safe as float
+                                    (float)s12_raw_len / 2.0f, (float)s13_raw_len / 2.0f, (float)s14_raw_len / 2.0f, (float)s15_raw_len / 2.0f,
+                                    
+                                    (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,  // replace Samples
+                                    (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
+                                    (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s11_raw_len / 2.0f,
+                                    (float)s12_raw_len / 2.0f, (float)s13_raw_len / 2.0f, (float)s14_raw_len / 2.0f, (float)s15_raw_len / 2.0f                                    
+                                  } ; // 2 bytes  as one sample -> safe as float
     
-    const uint16_t * samples [16] = { (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
+    const uint16_t * samples [32] = { (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
                                       (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
                                       (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s11_raw,
-                                      (uint16_t*)&s12_raw, (uint16_t*)&s13_raw,(uint16_t*)&s14_raw, (uint16_t*)&s15_raw };
+                                      (uint16_t*)&s12_raw, (uint16_t*)&s13_raw,(uint16_t*)&s14_raw, (uint16_t*)&s15_raw,
+
+                                      (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
+                                      (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
+                                      (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s11_raw,
+                                      (uint16_t*)&s12_raw, (uint16_t*)&s13_raw,(uint16_t*)&s14_raw, (uint16_t*)&s15_raw 
+                                    };
    
 
     thea_sample+=inc_sample;
@@ -345,44 +362,18 @@ void renderAudio() {
 
 
 void loop() {
+
   // S/H Speed -------------------------------------------------------
-  
+
   uint16_t noise_pitch_jack = adc51.readAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
   uint16_t noise_pitch_poti = adc51.readAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
-
-  uint16_t noise_pitch_sum =  noise_pitch_poti;
-  if(noise_pitch_jack<4095){  // if is connected
-     noise_pitch_sum += noise_pitch_jack;
-  }
-
-  if(noise_pitch_sum > 4095){
-    noise_pitch_sum = 4095;
-  }
+  uint32_t noise_pitch_sum = ((noise_pitch_poti * noise_pitch_jack) >> 12 ) & 0x0fff;
   inc_noise = adc51.adcToInc[noise_pitch_sum];
 
   // -----------------------------------------------------------------
-
-
-
-
-
-  // uint16_t clk_sqr = adc51.readAnalog(PB03,ADC_Channel15,false);     // Regler unten Links
-  // inc_sqr = adc51.adcToInc[clk_noise & 0x0fff ];
-
-
-  // Serial.println(clk_noise,DEC);
-  // delay(100);
-
-
-  // float clk_noise_f = pitches[clk_noise & 0x03ff];  // Limit 4096 array size
-  // inc_noise = 0.01f * clk_noise_f;
-  // if(inc_noise>2.0f) inc_noise=1.9f;
-  // if(inc_noise<0.00001f) inc_noise=0.00001f;
-
   // SAMPLE Speed
   uint16_t sample_pitch_poti = adc51.readAnalog(PA07,ADC_Channel7,false); 
   uint16_t sample_pitch_jack = adc51.readAnalog(PA06,ADC_Channel8,true);  
-
   uint16_t sample_pitch_sum =  sample_pitch_poti;
   if(sample_pitch_jack<4095){  // if is connected
      sample_pitch_sum += sample_pitch_jack;
@@ -390,31 +381,19 @@ void loop() {
   if(sample_pitch_sum > 4095){
     sample_pitch_sum = 4095;
   }
-  
   float clk_sample_f = pitches[(sample_pitch_sum >> 4) & 0x03ff];  // Limit 1024 array size
   inc_sample = clk_sample_f ;
   if(inc_sample>1.0f) inc_sample=1.0f;
   if(inc_sample<0.000001f) inc_sample=0.000001f;  
 
-
   // 8Bit ChipMusic Speed
   inc_8bit =  inc_sample;
 
-  // PB08,ADC_Channel2,false
-
+  // -----------------------------------------------------------------
   // SQR Speed
   uint16_t sqr_pitch_poti = adc51.readAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
   uint16_t sqr_pitch_jack = adc51.readAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
-
-  uint16_t sqr_pitch_sum =  sqr_pitch_poti;
-  if(sqr_pitch_jack<4095){  // if is connected
-     sqr_pitch_sum += sqr_pitch_jack;
-  }
-
-  if(sqr_pitch_sum > 4095){
-    sqr_pitch_sum = 4095;
-  }
-
+  uint32_t sqr_pitch_sum = ((sqr_pitch_poti * sqr_pitch_jack) >> 12 ) & 0x0fff;
   float inc_sqr = adc51.adcToInc[sqr_pitch_sum];
   thea_inc[0]=  spreads[0] * inc_sqr;
   thea_inc[1]=  spreads[1] * inc_sqr;
@@ -423,26 +402,17 @@ void loop() {
   thea_inc[4]=  spreads[4] * inc_sqr;
   thea_inc[5]=  spreads[5] * inc_sqr;
 
+  // Bank Switch
+  uint16_t spread_bank_offset=0;
+  if(!(PORT->Group[PORTA].IN.reg & (1ul << 21))) // PA21 button A/B Bank
+    spread_bank_offset=16;
 
-  // SQR Programm
-  // 0x01fc...0x02f4  dec: 508...756
-  // Neu: 240 .... 3840
+  // prg spread
   uint16_t spread_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
-  int16_t spread = spread_adc - 255 ;
-  if(spread <= 0){
-    spread=0;
-  }else{
-    spread = spread / 238;
-  }
-  // Serial.println(spread_adc,HEX);
- 
-//if(spread > 30 ) spread = 0;
-  if(spread > 15 ) spread = 15;
-  // Mute as PRG 0 !!! -> easy to sequence
-  // 4 Bit Noise as PRG 15 ????
+  uint16_t spread   = map(spread_adc,250,3650, 0, 15) + spread_bank_offset;
 
- 
- 
+
+
   switch(spread){
     case 0: // all Off
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
@@ -533,16 +503,19 @@ void loop() {
   }
 
   is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);        // digitalRead(PB17);
-//  uint16_t prg8_smpl_select_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
+
   uint16_t prg8_smpl_select_adc = adc51.readAnalog(PA06,ADC_Channel6,false);
-  int16_t prg8_smpl_select = (prg8_smpl_select_adc - 255 )  >> 8 ;
-  if(prg8_smpl_select > 30 ) prg8_smpl_select = 0;
-  if(prg8_smpl_select > 15 ) prg8_smpl_select = 15;
-  if(prg8_smpl_select < 0 )  prg8_smpl_select = 0;
-  prg8 = prg8_smpl_select;
-  samplePrg=prg8_smpl_select; 
+  int16_t prg8_smpl_select    = map(prg8_smpl_select_adc,250,3650, 0, 15);
+  
+  uint16_t smpl_bank_offset=0;
+  if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) // PA20 button A/B Bank
+    smpl_bank_offset=16;
 
+  prg8 = prg8_smpl_select + smpl_bank_offset;
+  samplePrg=prg8_smpl_select + smpl_bank_offset; 
 
+  uint16_t ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
+  uint16_t ratchet_adc_select   = map(ratchet_adc,250,3650, 0, 15);
 
 
   // Forward Button + Trigger to LED
@@ -554,19 +527,25 @@ void loop() {
   }
 
 
-/*
+
   static int dsbug = 0;
   dsbug++;
   if(!(dsbug % 500)){
-    Serial.print(spread_adc,DEC);
+    Serial.print(spread,DEC);
     Serial.print(" ");
-    Serial.print(inc_sample,DEC);
+    Serial.print(samplePrg,HEX);
     Serial.print(" ");
-    Serial.print(prg8_smpl_select,HEX);
+    Serial.print(ratchet_adc_select,DEC);
+    Serial.print(" ");
+    Serial.print(ratchet_adc,DEC);
+//    Serial.print(" PA:");
+//    Serial.print(PORT->Group[PORTA].IN.reg,BIN);
+//    Serial.print(" PB:");
+//    Serial.print(PORT->Group[PORTB].IN.reg,BIN);
     Serial.print(" ");
     Serial.println(spread,DEC);
   }
-*/
+
 
 
 }

@@ -75,9 +75,9 @@ class SAMD51_ADC {
 
   // see how to compute: https://electronics.stackexchange.com/questions/278050/making-voltmeter-accepting-bipolar-input-voltage-using-a-microcontroller
   float voltageDivider(float vIn){
-    const float r1 = 20000.0f;  // 20k resitor
-    const float r2 = 6800.0f;   // 6k8 resitor
-    const float r3 = 10000.0f;  // 10k resitor
+    const float r1 =  22000.0f;  // 20k resitor  input resistor
+    const float r2 = 150000.0f;  // 6k8 resitor  to vref
+    const float r3 =  10000.0f;  // 10k resitor  to gnd
     const float vref = 3.3f;    // input ref from array
     const float dby = 1.0f / ( 1.0f / r1 + 1.0f / r2 + 1.0f / r3 );
     const float utx = vref / r2;
@@ -98,7 +98,7 @@ class SAMD51_ADC {
       uint16_t adc_v = ADCValueByVolt(voltageDivider(vin));   // 
       if(adc_v < 4096){
         // A4 = 440Hz = 2.75V as a reference point,
-        float frq =  440.0f / pow(2.0f, 2.75) * pow(2.0f, vin * volt_per_octave );  // <--- tuning stuff
+        float frq =  110.0f / pow(2.0f, 2.75) * pow(2.0f, vin * volt_per_octave );  // <--- tuning stuff
         float thea_inc = 2.0f / samplingrate * frq;
         if(thea_inc>1.0f) thea_inc=1.0f;            // Limit nyquist
         adcToInc[adc_v]=thea_inc;                   // compute table ADC value to phase increment for ramp osc
