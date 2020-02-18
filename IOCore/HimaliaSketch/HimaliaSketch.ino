@@ -541,7 +541,7 @@ void loop() {
 
   ratchet_counts = ratchet_adc_select;
 
-
+/*
 
   static int dsbug = 0;
   dsbug++;
@@ -560,7 +560,7 @@ void loop() {
     Serial.print(" ");
     Serial.println(spread,DEC);
   }
-
+*/
 
 
 }
