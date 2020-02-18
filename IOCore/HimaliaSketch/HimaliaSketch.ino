@@ -267,6 +267,7 @@ int prg8=0;
 uint16_t samplePrg;
 bool is_8bitchipmode = false;
 
+volatile uint16_t ratchet_counts=1;
 //
 //  AUDIO RENDERER callback for a single sample
 //
@@ -284,6 +285,8 @@ void renderAudio() {
     if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
     if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
   }
+
+
 
 
   // SuperSQUARE Ramps generate binary pattern
@@ -309,6 +312,26 @@ void renderAudio() {
   if(flt_pins[3])  PORT->Group[PORTA].DIRSET.reg = 1ul << 16; else   PORT->Group[PORTA].DIRCLR.reg = 1ul << 16;
   if(flt_pins[4])  PORT->Group[PORTA].DIRSET.reg = 1ul << 17; else   PORT->Group[PORTA].DIRCLR.reg = 1ul << 17;
   if(flt_pins[5])  PORT->Group[PORTA].DIRSET.reg = 1ul << 18; else   PORT->Group[PORTA].DIRCLR.reg = 1ul << 18;
+
+
+
+  // Forward Button + Trigger to LED
+  static uint16_t leftSamples = 0;
+  static bool     previous_trigger = false;
+  if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
+        (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
+    PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;             // trigger fire!
+    previous_trigger=false;
+  } else {
+    PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
+    if(!previous_trigger){          // check for edge
+      leftSamples = ratchet_counts;
+    }
+    previous_trigger=true;
+  }
+
+
+
 
   if(is_8bitchipmode){
     // 8 Bit OSC
@@ -344,14 +367,18 @@ void renderAudio() {
                                       (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s11_raw,
                                       (uint16_t*)&s12_raw, (uint16_t*)&s13_raw,(uint16_t*)&s14_raw, (uint16_t*)&s15_raw 
                                     };
-   
 
-    thea_sample+=inc_sample;
-    if(thea_sample>1.0f){
-      thea_sample=0.0f;
+
+    if(leftSamples>0){
+      thea_sample+=inc_sample;
+      if(thea_sample>1.0f){
+        thea_sample=0.0f;
+        leftSamples--;
+      }
+      uint16_t sample_h = samples[samplePrg][(uint32_t)(sample_mul[samplePrg] * thea_sample)];  // extend to 32 Bit
+      DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
     }
-    uint16_t sample_h = samples[samplePrg][(uint32_t)(sample_mul[samplePrg] * thea_sample)];  // extend to 32 Bit
-    DAC->DATA[1].reg = (uint16_t)sample_h >> 4;
+
   }
 
   // PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
@@ -411,8 +438,6 @@ void loop() {
   uint16_t spread_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
   uint16_t spread   = map(spread_adc,250,3650, 0, 15) + spread_bank_offset;
 
-
-
   switch(spread){
     case 0: // all Off
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
@@ -462,9 +487,6 @@ void loop() {
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.0f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.0f;        sq_TRS[5]= 0.0f;
       spreads[0]= 1.0f;    spreads[1]= 1.0;     spreads[2]= 1.20f;    spreads[3]= 1.20f; spreads[4]= 1.5f; spreads[5]= 1.5f;
       break;  
-
-
-
     case 9:
       flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.2f;       sq_TRS[1]= -0.2f;        sq_TRS[2]= 0.8f;        sq_TRS[3]= 0.2f;        sq_TRS[4]= 0.9f;        sq_TRS[5]= 0.1f;
@@ -517,14 +539,7 @@ void loop() {
   uint16_t ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
   uint16_t ratchet_adc_select   = map(ratchet_adc,250,3650, 0, 15);
 
-
-  // Forward Button + Trigger to LED
-  if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
-        (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
-    PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;
-  } else {
-    PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
-  }
+  ratchet_counts = ratchet_adc_select;
 
 
 
