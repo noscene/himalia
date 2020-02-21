@@ -94,7 +94,7 @@ class SAMD51_ADC {
   void createADCMap() {
     const float samplingrate = 96000.0f;
     const float volt_per_octave = 1.0f;     // mode for with range
-    for(float vin = -10.0f ; vin < 10.0f ; vin+=0.001f){      // lets brute force, but fast enough
+    for(float vin = -15.0f ; vin < 15.0f ; vin+=0.001f){      // lets brute force, but fast enough
       uint16_t adc_v = ADCValueByVolt(voltageDivider(vin));   // 
       if(adc_v < 4096){
         // A4 = 440Hz = 2.75V as a reference point,

@@ -295,10 +295,16 @@ void renderAudio() {
     thea_noise-=2.0f;
     // if(!DAC->SYNCBUSY.bit.DATA0)    
     DAC->DATA[0].reg = lsfr1.next();
-    static bool noise_led=false;
-    noise_led=!noise_led;
-    if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
-    if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
+
+    static uint16_t subdiv=0;
+    subdiv++;
+
+    if(!(subdiv % 4)){
+      static bool noise_led=false;
+      noise_led=!noise_led;
+      if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
+      if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
+    }
   }
 
 
@@ -409,8 +415,14 @@ void loop() {
 
   uint16_t noise_pitch_jack = adc51.readAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
   uint16_t noise_pitch_poti = adc51.readAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
-  uint32_t noise_pitch_sum = ((noise_pitch_poti * noise_pitch_jack) >> 12 ) & 0x0fff;
-  inc_noise = adc51.adcToInc[noise_pitch_sum];
+  uint32_t noise_pitch_sum = ((noise_pitch_poti + noise_pitch_jack) );
+  if(noise_pitch_jack>4000){  // if is connected
+     noise_pitch_sum = noise_pitch_poti;
+  }
+
+  if(noise_pitch_sum> 4095) noise_pitch_sum= 4095;
+  inc_noise = adc51.adcToInc[noise_pitch_sum] * 4.0f;
+  if(inc_noise> 0.99)inc_noise=0.99;
 
   // -----------------------------------------------------------------
   // SAMPLE Speed
@@ -435,7 +447,13 @@ void loop() {
   // SQR Speed
   uint16_t sqr_pitch_poti = adc51.readAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
   uint16_t sqr_pitch_jack = adc51.readAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
-  uint32_t sqr_pitch_sum = ((sqr_pitch_poti * sqr_pitch_jack) >> 12 ) & 0x0fff;
+  uint16_t sqr_pitch_sum = ((sqr_pitch_poti + sqr_pitch_jack)  );
+  if(sqr_pitch_jack > 4000)
+    sqr_pitch_sum = sqr_pitch_poti;
+
+  if(sqr_pitch_sum>4000) sqr_pitch_sum=4000;
+
+
   float inc_sqr = adc51.adcToInc[sqr_pitch_sum];
   thea_inc[0]=  spreads[0] * inc_sqr;
   thea_inc[1]=  spreads[1] * inc_sqr;
@@ -537,6 +555,97 @@ void loop() {
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
       spreads[0]= 1.0f;      spreads[1]= 1.11f;      spreads[2]= 1.211f;     spreads[3]= 1.314f;     spreads[4]= 1.379f;      spreads[5]= 1.401f;
       break;  
+
+
+
+
+  // BANK 2
+    case 16:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 2.211f;      spreads[2]= 2.513f;     spreads[3]= 2.632f;     spreads[4]= 3.316f;      spreads[5]= 3.682f;
+      break;  
+    case 17:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.539f;      spreads[2]= 1.776f;     spreads[3]= 2.224f;     spreads[4]= 2.632f;      spreads[5]= 3.316f;
+      break;  
+    case 18:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.105f;      spreads[2]= 1.171f;     spreads[3]= 1.237f;     spreads[4]= 1.276f;      spreads[5]= 1.355f;
+      break;  
+    case 19:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 2.01f;      spreads[2]= 2.99f;     spreads[3]= 4.02f;     spreads[4]= 4.97f;      spreads[5]= 6.03f;
+      break;  
+    case 20:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 3.346f;      spreads[2]= 3.564f;     spreads[3]= 3.974f;     spreads[4]= 5.282f;      spreads[5]= 5.949f;
+      break;  
+    case 21:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.141f;      spreads[2]= 1.218f;     spreads[3]= 1.333f;     spreads[4]= 1.5f;      spreads[5]= 1.603f;
+      break;  
+    case 22:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.769f;      spreads[2]= 2.244f;     spreads[3]= 2.666f;     spreads[4]= 3.0f;      spreads[5]= 3.551f;
+      break;  
+    case 23:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.012f;      spreads[2]= 2.011f;     spreads[3]= 2.034f;     spreads[4]= 2.391f;      spreads[5]= 2.414f;
+      break;
+    case 24:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.013f;      spreads[2]= 1.506f;     spreads[3]= 2.023f;     spreads[4]= 2.413f;      spreads[5]= 3.034f;
+      break;  
+    case 25:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.131f;      spreads[2]= 1.187f;     spreads[3]= 1.285f;     spreads[4]= 1.355f;      spreads[5]= 1.480f;
+      break;  
+    case 26:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.537f;      spreads[2]= 2.349f;     spreads[3]= 2.752f;     spreads[4]= 2.357f;      spreads[5]= 3.114f;
+      break;  
+    case 27:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.572f;      spreads[2]= 1.845f;     spreads[3]= 2.2f;     spreads[4]= 3.379f;      spreads[5]= 3.401f;
+      break;
+   case 28:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.101f;      spreads[2]= 1.281f;     spreads[3]= 1.47f;     spreads[4]= 1.99f;      spreads[5]= 1.601f;
+      break;  
+    case 29:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 2.11f;      spreads[2]= 3.211f;     spreads[3]= 3.314f;     spreads[4]= 1.379f;      spreads[5]= 4.401f;
+      break;  
+    case 30:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.851f;      spreads[2]= 1.211f;     spreads[3]= 2.314f;     spreads[4]= 2.579f;      spreads[5]= 2.132f;
+      break;  
+    case 31:
+      flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
+      sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
+      spreads[0]= 1.0f;      spreads[1]= 1.11f;      spreads[2]= 1.311f;     spreads[3]= 1.414f;     spreads[4]= 1.579f;      spreads[5]= 1.601f;
+      break;
+
+
+
+
+
+
   }
 
   is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);        // digitalRead(PB17);
@@ -556,14 +665,14 @@ void loop() {
 
   ratchet_counts = ratchet_adc_select;
 
-/*
+/**/
 
   static int dsbug = 0;
   dsbug++;
   if(!(dsbug % 500)){
-    Serial.print(spread,DEC);
+    Serial.print(noise_pitch_poti,DEC);
     Serial.print(" ");
-    Serial.print(samplePrg,HEX);
+    Serial.print(inc_noise);
     Serial.print(" ");
     Serial.print(ratchet_adc_select,DEC);
     Serial.print(" ");
@@ -575,7 +684,7 @@ void loop() {
     Serial.print(" ");
     Serial.println(spread,DEC);
   }
-*/
+
 
 
 }
