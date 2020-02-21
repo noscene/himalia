@@ -30,7 +30,22 @@
 #include "s14.h"
 #include "s15.h"
 
-
+#include "s16.h"
+#include "s17.h"
+#include "s18.h"
+#include "s19.h"
+#include "s20.h"
+#include "s21.h"
+#include "s22.h"
+#include "s23.h"
+#include "s24.h"
+#include "s25.h"
+#include "s26.h"
+#include "s27.h"
+#include "s28.h"
+#include "s29.h"
+#include "s30.h"
+#include "s31.h"
 /*
 
 PA22 RandomOut    PWM Out ?
@@ -132,7 +147,7 @@ void setup() {
 
   // gen Table
   for(uint16_t i = 0 ; i < 1024 ; i ++){
-    float clk_tempo_f = (float)i / 128.0f - 4.0f;
+    float clk_tempo_f = (float)i / 256.0f - 6.0f;
     pitches[i] = pow(12,clk_tempo_f);
   }
 
@@ -351,21 +366,21 @@ void renderAudio() {
                                     (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s11_raw_len / 2.0f,
                                     (float)s12_raw_len / 2.0f, (float)s13_raw_len / 2.0f, (float)s14_raw_len / 2.0f, (float)s15_raw_len / 2.0f,
                                     
-                                    (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,  // replace Samples
-                                    (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
-                                    (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s11_raw_len / 2.0f,
-                                    (float)s12_raw_len / 2.0f, (float)s13_raw_len / 2.0f, (float)s14_raw_len / 2.0f, (float)s15_raw_len / 2.0f                                    
+                                    (float)s16_raw_len / 2.0f , (float)s17_raw_len / 2.0f , (float)s18_raw_len / 2.0f , (float)s19_raw_len / 2.0f,  // replace Samples
+                                    (float)s20_raw_len / 2.0f , (float)s21_raw_len / 2.0f , (float)s22_raw_len / 2.0f , (float)s23_raw_len / 2.0f,
+                                    (float)s24_raw_len / 2.0f , (float)s25_raw_len / 2.0f , (float)s26_raw_len / 2.0f,  (float)s27_raw_len / 2.0f,
+                                    (float)s28_raw_len / 2.0f,  (float)s29_raw_len / 2.0f,  (float)s30_raw_len / 2.0f,  (float)s31_raw_len / 2.0f                                    
                                   } ; // 2 bytes  as one sample -> safe as float
     
-    const uint16_t * samples [32] = { (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
-                                      (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
-                                      (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s11_raw,
-                                      (uint16_t*)&s12_raw, (uint16_t*)&s13_raw,(uint16_t*)&s14_raw, (uint16_t*)&s15_raw,
+    const uint16_t * samples [32] = { (uint16_t*)&s0_raw,   (uint16_t*)&s1_raw,  (uint16_t*)&s2_raw,   (uint16_t*)&s3_raw,
+                                      (uint16_t*)&s4_raw,   (uint16_t*)&s5_raw,  (uint16_t*)&s6_raw,   (uint16_t*)&s7_raw,
+                                      (uint16_t*)&s8_raw,   (uint16_t*)&s9_raw,  (uint16_t*)&s10_raw,  (uint16_t*)&s11_raw,
+                                      (uint16_t*)&s12_raw,  (uint16_t*)&s13_raw, (uint16_t*)&s14_raw,  (uint16_t*)&s15_raw, 
 
-                                      (uint16_t*)&s0_raw,  (uint16_t*)&s1_raw, (uint16_t*)&s2_raw,  (uint16_t*)&s3_raw,
-                                      (uint16_t*)&s4_raw,  (uint16_t*)&s5_raw, (uint16_t*)&s6_raw,  (uint16_t*)&s7_raw,
-                                      (uint16_t*)&s8_raw,  (uint16_t*)&s9_raw, (uint16_t*)&s10_raw, (uint16_t*)&s11_raw,
-                                      (uint16_t*)&s12_raw, (uint16_t*)&s13_raw,(uint16_t*)&s14_raw, (uint16_t*)&s15_raw 
+                                      (uint16_t*)&s16_raw,  (uint16_t*)&s17_raw, (uint16_t*)&s18_raw,  (uint16_t*)&s19_raw,
+                                      (uint16_t*)&s20_raw,  (uint16_t*)&s21_raw, (uint16_t*)&s22_raw,  (uint16_t*)&s23_raw,
+                                      (uint16_t*)&s24_raw,  (uint16_t*)&s25_raw, (uint16_t*)&s26_raw,  (uint16_t*)&s27_raw,
+                                      (uint16_t*)&s28_raw,  (uint16_t*)&s29_raw, (uint16_t*)&s30_raw,  (uint16_t*)&s31_raw
                                     };
 
 
@@ -408,7 +423,7 @@ void loop() {
   if(sample_pitch_sum > 4095){
     sample_pitch_sum = 4095;
   }
-  float clk_sample_f = pitches[(sample_pitch_sum >> 4) & 0x03ff];  // Limit 1024 array size
+  float clk_sample_f = pitches[(sample_pitch_sum >> 2) & 0x03ff];  // Limit 1024 array size
   inc_sample = clk_sample_f ;
   if(inc_sample>1.0f) inc_sample=1.0f;
   if(inc_sample<0.000001f) inc_sample=0.000001f;  
