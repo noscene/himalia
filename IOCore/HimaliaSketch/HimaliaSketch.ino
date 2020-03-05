@@ -199,9 +199,6 @@ void setup() {
                 );
 
   zt4.setPeriodMatch(125, 250, 0); // 1 match, channel 0
-
-  
-
   zt4.setCallback(true, TC_CALLBACK_CC_CHANNEL0, renderAudio);  // set DAC in the callback
   zt4.enable(true);
 }
@@ -282,7 +279,7 @@ int prg8=0;
 uint16_t samplePrg;
 bool is_8bitchipmode = false;
 
-volatile uint16_t ratchet_counts=1;
+volatile uint32_t ratchet_counts=1;
 //
 //  AUDIO RENDERER callback for a single sample
 //
@@ -337,7 +334,7 @@ void renderAudio() {
 
 
   // Forward Button + Trigger to LED
-  static uint16_t leftSamples = 0;
+  static uint32_t leftSamples = 0;
   static bool     previous_trigger = false;
   if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
         (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
@@ -347,6 +344,7 @@ void renderAudio() {
     PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
     if(!previous_trigger){          // check for edge
       leftSamples = ratchet_counts;
+      thea_sample=0.0f; // retrigger 
     }
     previous_trigger=true;
   }
@@ -650,22 +648,34 @@ void loop() {
 
   is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);        // digitalRead(PB17);
 
+
+  uint16_t cv_sample_select_adc = adc51.readAnalog(PB09,ADC_Channel3,false);
+
+
   uint16_t prg8_smpl_select_adc = adc51.readAnalog(PA06,ADC_Channel6,false);
+  
+  prg8_smpl_select_adc+=cv_sample_select_adc;
+  
   int16_t prg8_smpl_select    = map(prg8_smpl_select_adc,250,3650, 0, 15);
   
   uint16_t smpl_bank_offset=0;
   if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) // PA20 button A/B Bank
     smpl_bank_offset=16;
 
-  prg8 = prg8_smpl_select + smpl_bank_offset;
-  samplePrg=prg8_smpl_select + smpl_bank_offset; 
+  uint16_t t_prg_select = (prg8_smpl_select + smpl_bank_offset) & 0x1f; // fix a possible crash
+
+  prg8      = t_prg_select;
+  samplePrg = t_prg_select; 
 
   uint16_t ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
   uint16_t ratchet_adc_select   = map(ratchet_adc,250,3650, 0, 15);
 
-  ratchet_counts = ratchet_adc_select;
+  if(ratchet_adc_select == 15)
+    ratchet_counts = 0xffffffff;
+  else
+    ratchet_counts = ratchet_adc_select + 1;
 
-/**/
+/** /
 
   static int dsbug = 0;
   dsbug++;
@@ -684,7 +694,7 @@ void loop() {
     Serial.print(" ");
     Serial.println(spread,DEC);
   }
-
+/**/
 
 
 }
