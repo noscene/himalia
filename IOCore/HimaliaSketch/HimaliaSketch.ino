@@ -222,27 +222,27 @@ LFSR lsfr1(0xA1e);
 
 // 8-Bit OSC Stuff
 #define OSC8BIT_PRG_COUNT 32
-typedef unsigned char (*zm8BitPrg) (uint16_t t);
+typedef uint16_t (*zm8BitPrg) (uint16_t t);
 // https://git.metanohi.name/bytebeat.git/raw/c2f559b6efac4b03a0233e5797437af30601c170/clive.c
-static unsigned char render_prg0(uint16_t t){ return  t; }
-static unsigned char render_prg1(uint16_t t){ return  sines[(t>>8)]; }
-static unsigned char render_prg2(uint16_t t){ return  t*(42&t>>10); }     // viznut
-static unsigned char render_prg3(uint16_t t){ return  (t*5&t>>7)|(t*3&t>>10); }
+static uint16_t render_prg0(uint16_t t){ return  t; }
+static uint16_t render_prg1(uint16_t t){ return  sines[(t>>8)]; }
+static uint16_t render_prg2(uint16_t t){ return  t*(42&t>>10); }     // viznut
+static uint16_t render_prg3(uint16_t t){ return  (t*5&t>>7)|(t*3&t>>10); }
 
-static unsigned char render_prg4(uint16_t t){ return  t|t%255|t%257; } 
-static unsigned char render_prg5(uint16_t t){ return  t>>6&1?t>>5:-t>>4; }
-static unsigned char render_prg6(uint16_t t){ return  t*(t>>9|t>>13)&16; }
-static unsigned char render_prg7(uint16_t t){ return  t*(((t>>9)^((t>>9)-1)^1)%13); }
+static uint16_t render_prg4(uint16_t t){ return  t|t%255|t%257; } 
+static uint16_t render_prg5(uint16_t t){ return  t>>6&1?t>>5:-t>>4; }
+static uint16_t render_prg6(uint16_t t){ return  t*(t>>9|t>>13)&16; }
+static uint16_t render_prg7(uint16_t t){ return  t*(((t>>9)^((t>>9)-1)^1)%13); }
 
-static unsigned char render_prg8(uint16_t t){  return  t*(t>>8*((t>>15)|(t>>8))&(20|(t>>19)*5>>t|(t>>3))); }
-static unsigned char render_prg9(uint16_t t){  return  t*(t>>((t>>9)|(t>>8))&(63&(t>>4))); }
-static unsigned char render_prg10(uint16_t t){ return (t>>6|t|t>>(t>>16))*10+((t>>11)&7); }
-static unsigned char render_prg11(uint16_t t){ return (t|(t>>9|t>>7))*t&(t>>11|t>>9); }
+static uint16_t render_prg8(uint16_t t){  return  t*(t>>8*((t>>15)|(t>>8))&(20|(t>>19)*5>>t|(t>>3))); }
+static uint16_t render_prg9(uint16_t t){  return  t*(t>>((t>>9)|(t>>8))&(63&(t>>4))); }
+static uint16_t render_prg10(uint16_t t){ return (t>>6|t|t>>(t>>16))*10+((t>>11)&7); }
+static uint16_t render_prg11(uint16_t t){ return (t|(t>>9|t>>7))*t&(t>>11|t>>9); }
 
-static unsigned char render_prg12(uint16_t t){ return t*(((t>>12)|(t>>8))&(63&(t>>4))); }
-static unsigned char render_prg13(uint16_t t){ return t*(t^t+(t>>15|1)^(t-1280^t)>>10); }
-static unsigned char render_prg14(uint16_t t){ return (t&t%255)-(t*3&t>>13&t>>6); }
-static unsigned char render_prg15(uint16_t t){ return (t+(t>>2)|(t>>5))+(t>>3)|((t>>13)|(t>>7)|(t>>11)); }
+static uint16_t render_prg12(uint16_t t){ return t*(((t>>12)|(t>>8))&(63&(t>>4))); }
+static uint16_t render_prg13(uint16_t t){ return t*(t^t+(t>>15|1)^(t-1280^t)>>10); }
+static uint16_t render_prg14(uint16_t t){ return (t&t%255)-(t*3&t>>13&t>>6); }
+static uint16_t render_prg15(uint16_t t){ return (t+(t>>2)|(t>>5))+(t>>3)|((t>>13)|(t>>7)|(t>>11)); }
 
 const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render_prg2, render_prg3,
                                                 render_prg4, render_prg5, render_prg6, render_prg7,
@@ -352,14 +352,15 @@ void renderAudio() {
 
 
 
-  if(is_8bitchipmode){
+  if(!is_8bitchipmode){
     // 8 Bit OSC
     static float t=0;
     zm8BitPrg  callBackPrg = prgList[prg8];
-    t+=inc_8bit * 1024.0f;
-    if(t>65535.0f) t=0.0f;
-    // if(!DAC->SYNCBUSY.bit.DATA1)
-    DAC->DATA[1].reg = callBackPrg((uint16_t)t) << 4;
+    if(t>65535.0f) t=0.0f;  {
+      t+=inc_8bit * 1024.0f;  // TODO: its wrong!!! needs callBack on phase Reset!!!!
+      // if(!DAC->SYNCBUSY.bit.DATA1)
+      DAC->DATA[1].reg = callBackPrg((uint16_t)t) << 4;
+    }
   }else{
     // Sample Ouput
     // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
@@ -653,19 +654,19 @@ void loop() {
 
 
   uint16_t prg8_smpl_select_adc = adc51.readAnalog(PA06,ADC_Channel6,false);
+  if(cv_sample_select_adc < 4000 ) // if jack is conneced (no normalized)
+    prg8_smpl_select_adc+=cv_sample_select_adc;
   
-  prg8_smpl_select_adc+=cv_sample_select_adc;
-  
-  int16_t prg8_smpl_select    = map(prg8_smpl_select_adc,250,3650, 0, 15);
+  int16_t prg8_smpl_select    = map(prg8_smpl_select_adc,210,3650, 0, 15);
   
   uint16_t smpl_bank_offset=0;
   if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) // PA20 button A/B Bank
     smpl_bank_offset=16;
 
-  uint16_t t_prg_select = (prg8_smpl_select + smpl_bank_offset) & 0x1f; // fix a possible crash
+  uint16_t t_prg_select = (prg8_smpl_select + smpl_bank_offset) ; // fix a possible crash
 
-  prg8      = t_prg_select;
-  samplePrg = t_prg_select; 
+  prg8      = t_prg_select & 0x1f;
+  samplePrg = t_prg_select & 0x1f;
 
   uint16_t ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
   uint16_t ratchet_adc_select   = map(ratchet_adc,250,3650, 0, 15);
@@ -680,13 +681,13 @@ void loop() {
   static int dsbug = 0;
   dsbug++;
   if(!(dsbug % 500)){
-    Serial.print(noise_pitch_poti,DEC);
+    Serial.print(samplePrg,DEC);
     Serial.print(" ");
-    Serial.print(inc_noise);
+    Serial.print(prg8_smpl_select);
     Serial.print(" ");
-    Serial.print(ratchet_adc_select,DEC);
+    Serial.print(prg8_smpl_select_adc,DEC);
     Serial.print(" ");
-    Serial.print(ratchet_adc,DEC);
+    Serial.print(cv_sample_select_adc,DEC);
 //    Serial.print(" PA:");
 //    Serial.print(PORT->Group[PORTA].IN.reg,BIN);
 //    Serial.print(" PB:");
