@@ -622,22 +622,22 @@ void loop() {
    case 28:
       flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0f;      spreads[1]= 1.101f;      spreads[2]= 1.281f;     spreads[3]= 1.47f;     spreads[4]= 1.99f;      spreads[5]= 1.601f;
+      spreads[0]= 1.346f;      spreads[1]= 2.015f;      spreads[2]= 3.584f;     spreads[3]= 4.792f;     spreads[4]= 7.162f;      spreads[5]= 10.754f;
       break;  
     case 29:
       flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0f;      spreads[1]= 2.11f;      spreads[2]= 3.211f;     spreads[3]= 3.314f;     spreads[4]= 1.379f;      spreads[5]= 4.401f;
+      spreads[0]= 2.515f;      spreads[1]= 3.015f;      spreads[2]= 3.777f;     spreads[3]= 4.523f;     spreads[4]= 5.654f;      spreads[5]= 6.785f;
       break;  
     case 30:
       flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0f;      spreads[1]= 1.851f;      spreads[2]= 1.211f;     spreads[3]= 2.314f;     spreads[4]= 2.579f;      spreads[5]= 2.132f;
+      spreads[0]= 1.0f;      spreads[1]= 1.508f;      spreads[2]= 2.015f;     spreads[3]= 2.5156f;     spreads[4]= 3.015f;      spreads[5]= 3.577f;
       break;  
     case 31:
       flt_TRS[0]= 3.0f;      flt_TRS[1]= 3.0f;       flt_TRS[2]= 3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= 3.0f;        flt_TRS[5]= 3.0f;
       sq_TRS[0]= 0.0f;       sq_TRS[1]= 0.0f;        sq_TRS[2]= 0.7f;        sq_TRS[3]= 0.0f;        sq_TRS[4]= 0.9f;         sq_TRS[5]= 0.0f;
-      spreads[0]= 1.0f;      spreads[1]= 1.11f;      spreads[2]= 1.311f;     spreads[3]= 1.414f;     spreads[4]= 1.579f;      spreads[5]= 1.601f;
+      spreads[0]= 1.0f;      spreads[1]= 1.792f;      spreads[2]= 2.015f;     spreads[3]= 2.392f;     spreads[4]= 3.584f;      spreads[5]= 4.523f;
       break;
 
 
