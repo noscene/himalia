@@ -7,7 +7,12 @@
 
 #include "samd51_adc.h"
 
+#define MAX(a,b) ((a) > (b) ? a : b)
+#define MIN(a,b) ((a) < (b) ? a : b)
+#define RANGE(min,v,max)	  MIN(MAX(v,min),max) 
+#define MAP_RANGE(v,a,b,mi,ma) RANGE(mi,map(v,a,b,mi,ma),ma)
 
+  
 // const frequency = Math.pow(2, (m - 69) / 12) * 440;
 // incrementer unipolar = 1/SR * f
 // incrementer bipolar = 2/SR * f 
@@ -193,7 +198,7 @@ void setup() {
   
 
   // create Time for AudioSamples
-  zt4.configure(TC_CLOCK_PRESCALER_DIV4, // prescaler
+  zt4.configure(TC_CLOCK_PRESCALER_DIV8, // prescaler
                 TC_COUNTER_SIZE_8BIT,   // bit width of timer/counter
                 TC_WAVE_GENERATION_MATCH_PWM  // match style
                 );
@@ -269,15 +274,14 @@ volatile float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001
 
 float thea_noise  = 0.0f;
 volatile float inc_noise   = 0.001f;
-
 volatile float inc_8bit   = 0.001f;
 
 float thea_sample  = 0.0f;
 volatile float inc_sample   = 0.001f;
 
-int prg8=0;
-uint16_t samplePrg;
-bool is_8bitchipmode = false;
+volatile int prg8=0;
+volatile uint16_t samplePrg;
+// volatile bool is_8bitchipmode = false;
 
 volatile uint32_t ratchet_counts=1;
 //
@@ -351,6 +355,7 @@ void renderAudio() {
 
 
 
+  bool is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);        // digitalRead(PB17);
 
   if(!is_8bitchipmode){
     // 8 Bit OSC
@@ -366,15 +371,15 @@ void renderAudio() {
     // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
     // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
     // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
-    const float sample_mul[32] = {  (float)s0_raw_len / 2.0f , (float)s1_raw_len / 2.0f , (float)s2_raw_len / 2.0f , (float)s3_raw_len / 2.0f,
-                                    (float)s4_raw_len / 2.0f , (float)s5_raw_len / 2.0f , (float)s6_raw_len / 2.0f , (float)s7_raw_len / 2.0f,
-                                    (float)s8_raw_len / 2.0f , (float)s9_raw_len / 2.0f , (float)s10_raw_len / 2.0f, (float)s11_raw_len / 2.0f,
-                                    (float)s12_raw_len / 2.0f, (float)s13_raw_len / 2.0f, (float)s14_raw_len / 2.0f, (float)s15_raw_len / 2.0f,
+    const float sample_mul[32] = {  (float)s0_raw_len / 2.0f -1  , (float)s1_raw_len / 2.0f -1  , (float)s2_raw_len / 2.0f -1  , (float)s3_raw_len / 2.0f -1 ,
+                                    (float)s4_raw_len / 2.0f -1  , (float)s5_raw_len / 2.0f -1  , (float)s6_raw_len / 2.0f -1  , (float)s7_raw_len / 2.0f -1 ,
+                                    (float)s8_raw_len / 2.0f -1  , (float)s9_raw_len / 2.0f -1  , (float)s10_raw_len / 2.0f -1 , (float)s11_raw_len / 2.0f -1 ,
+                                    (float)s12_raw_len / 2.0f -1 , (float)s13_raw_len / 2.0f -1 , (float)s14_raw_len / 2.0f -1 , (float)s15_raw_len / 2.0f -1 ,
                                     
-                                    (float)s16_raw_len / 2.0f , (float)s17_raw_len / 2.0f , (float)s18_raw_len / 2.0f , (float)s19_raw_len / 2.0f,  // replace Samples
-                                    (float)s20_raw_len / 2.0f , (float)s21_raw_len / 2.0f , (float)s22_raw_len / 2.0f , (float)s23_raw_len / 2.0f,
-                                    (float)s24_raw_len / 2.0f , (float)s25_raw_len / 2.0f , (float)s26_raw_len / 2.0f,  (float)s27_raw_len / 2.0f,
-                                    (float)s28_raw_len / 2.0f,  (float)s29_raw_len / 2.0f,  (float)s30_raw_len / 2.0f,  (float)s31_raw_len / 2.0f                                    
+                                    (float)s16_raw_len / 2.0f  -1 , (float)s17_raw_len / 2.0f  -1 , (float)s18_raw_len / 2.0f  -1 , (float)s19_raw_len / 2.0f -1 ,  // replace Samples
+                                    (float)s20_raw_len / 2.0f  -1 , (float)s21_raw_len / 2.0f  -1 , (float)s22_raw_len / 2.0f  -1 , (float)s23_raw_len / 2.0f -1 ,
+                                    (float)s24_raw_len / 2.0f  -1 , (float)s25_raw_len / 2.0f  -1 , (float)s26_raw_len / 2.0f -1 ,  (float)s27_raw_len / 2.0f -1 ,
+                                    (float)s28_raw_len / 2.0f -1 ,  (float)s29_raw_len / 2.0f -1 ,  (float)s30_raw_len / 2.0f -1 ,  (float)s31_raw_len / 2.0f -1                                     
                                   } ; // 2 bytes  as one sample -> safe as float
     
     const uint16_t * samples [32] = { (uint16_t*)&s0_raw,   (uint16_t*)&s1_raw,  (uint16_t*)&s2_raw,   (uint16_t*)&s3_raw,
@@ -468,7 +473,9 @@ void loop() {
 
   // prg spread
   uint16_t spread_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
-  uint16_t spread   = map(spread_adc,250,3650, 0, 15) + spread_bank_offset;
+  uint16_t spread   = MAP_RANGE(spread_adc,250,3650, 0, 15) + spread_bank_offset;
+  
+
 
   switch(spread){
     case 0: // all Off
@@ -647,8 +654,7 @@ void loop() {
 
   }
 
-  is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);        // digitalRead(PB17);
-
+  
 
   uint16_t cv_sample_select_adc = adc51.readAnalog(PB09,ADC_Channel3,false);
 
@@ -657,7 +663,7 @@ void loop() {
   if(cv_sample_select_adc < 4000 ) // if jack is conneced (no normalized)
     prg8_smpl_select_adc+=cv_sample_select_adc;
   
-  int16_t prg8_smpl_select    = map(prg8_smpl_select_adc,210,3650, 0, 15);
+  int16_t prg8_smpl_select    = MAP_RANGE(prg8_smpl_select_adc,210,3650, 0, 15);
   
   uint16_t smpl_bank_offset=0;
   if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) // PA20 button A/B Bank
@@ -669,7 +675,7 @@ void loop() {
   samplePrg = t_prg_select & 0x1f;
 
   uint16_t ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
-  uint16_t ratchet_adc_select   = map(ratchet_adc,250,3650, 0, 15);
+  uint16_t ratchet_adc_select   = MAP_RANGE(ratchet_adc,250,3650, 0, 15);
 
   if(ratchet_adc_select == 15)
     ratchet_counts = 0xffffffff;
