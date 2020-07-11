@@ -135,78 +135,7 @@ const float reciprocal_sr = 1.0 / samplerate;
 float pitches[1024];
 uint8_t sines[256];
 
-void setup() {
-  //put your setup code here, to run once:
 
-  // First try remove DC from Ouputs  
-  dacInit();
-  DAC->DATA[0].reg = 2048;   // ca 1.5V
-  DAC->DATA[1].reg = 2048;
-  while (DAC->SYNCBUSY.bit.DATA0);
-
-  // gen sin Table
-  for(uint16_t i = 0 ; i < 256 ; i ++){
-    float phase = (float)i / 256.0f * PI * 2.0f;
-    sines[i] = (sin(phase) + 1.0) * 127.0f; 
-  }
-
-  // gen Table
-  for(uint16_t i = 0 ; i < 1024 ; i ++){
-    float clk_tempo_f = (float)i / 256.0f - 6.0f;
-    pitches[i] = pow(12,clk_tempo_f);
-  }
-
-  Serial.begin(115200);
-  // while ( !Serial ) delay(10);   // wait for native usb
-  Serial.println("Himalia");
-
-  /*
-  flash.begin();
-  Serial.println("Adafruit Serial Flash Info example");
-  Serial.print("JEDEC ID: "); Serial.println(flash.getJEDECID(), HEX);
-  Serial.print("Flash size: "); Serial.println(flash.size());
-  */
-
-  pinMode(PA13,INPUT); digitalWrite(PA13,false);
-  pinMode(PA14,INPUT); digitalWrite(PA14,false);
-  pinMode(PA15,INPUT); digitalWrite(PA15,false);
-  pinMode(PA16,INPUT); digitalWrite(PA16,false);
-  pinMode(PA17,INPUT); digitalWrite(PA17,false);
-  pinMode(PA18,INPUT); digitalWrite(PA18,false);
-
-
-  adc51.createADCMap();
-
-  pinMode(PA23,OUTPUT); // LED
-  pinMode(PB00,OUTPUT); // LED
-  pinMode(PB31,OUTPUT); // LED
-
-  pinMode(PA19,OUTPUT); // SQR1
-  pinMode(PA12,OUTPUT); // SQR2
-  pinMode(PB15,OUTPUT); // SQR1
-  pinMode(PB14,OUTPUT); // SQR1
-  pinMode(PB13,OUTPUT); // SQR1
-  pinMode(PB12,OUTPUT); // SQR1
-
-  pinMode(PA22,OUTPUT); // PWM OUT
-
-  pinMode(PB01,INPUT_PULLUP); // SQR1
-  pinMode(PA21,INPUT_PULLUP); // SQR1
-  pinMode(PB17,INPUT_PULLUP); // 8Bit or sample Button
-  pinMode(PB16,INPUT_PULLUP); // Manual Trigger
-  pinMode(PB23,INPUT_PULLUP); // Manual Trigger
-  
-
-  // create Time for AudioSamples
-  zt4.configure(TC_CLOCK_PRESCALER_DIV8, // prescaler
-                TC_COUNTER_SIZE_8BIT,   // bit width of timer/counter
-                TC_WAVE_GENERATION_MATCH_PWM  // match style
-                );
-
-  zt4.setPeriodMatch(125, 250, 0); // 1 match, channel 0
-  zt4.setCallback(true, TC_CALLBACK_CC_CHANNEL0, renderAudio);  // set DAC in the callback
-  zt4.enable(true);
-}
 
 //
 //  NoiseGenerator
@@ -249,7 +178,7 @@ static uint16_t render_prg13(uint16_t t){ return t*(t^t+(t>>15|1)^(t-1280^t)>>10
 static uint16_t render_prg14(uint16_t t){ return (t&t%255)-(t*3&t>>13&t>>6); }
 static uint16_t render_prg15(uint16_t t){ return (t+(t>>2)|(t>>5))+(t>>3)|((t>>13)|(t>>7)|(t>>11)); }
 
-const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render_prg2, render_prg3,
+static const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render_prg2, render_prg3,
                                                 render_prg4, render_prg5, render_prg6, render_prg7,
                                                 render_prg8, render_prg9, render_prg10,render_prg11,
                                                 render_prg12,render_prg13,render_prg14,render_prg15,
@@ -266,24 +195,48 @@ const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render
 //
 //  AUDIO RENDERER Parms
 //
-volatile float thea[6]     = { 0.0  , 0.0    , 0.0    , 0.0    , 0.0    , 0.0   };
-volatile float thea_inc[6] = { 0.001, 0.00101, 0.00102, 0.00105, 0.00107, 0.00109};
-volatile float sq_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
-volatile float flt_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
-volatile float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001011f,0.0001017f};
+float thea[6]     = { 0.0  , 0.0    , 0.0    , 0.0    , 0.0    , 0.0   };
+float thea_inc[6] = { 0.001, 0.00101, 0.00102, 0.00105, 0.00107, 0.00109};
+float sq_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
+float flt_TRS[6]   = { 0.0  ,0.0     ,0.0     ,0.0     ,0.0     ,0.0};
+float spreads[6]  = { 0.0001f, 0.0001002f, 0.0001003f,0.0001007f,0.0001011f,0.0001017f};
 
 float thea_noise  = 0.0f;
-volatile float inc_noise   = 0.001f;
-volatile float inc_8bit   = 0.001f;
+float inc_noise   = 0.001f;
+float inc_8bit   = 0.001f;
 
 float thea_sample  = 0.0f;
-volatile float inc_sample   = 0.001f;
+float inc_sample   = 0.001f;
 
-volatile int prg8=0;
-volatile uint16_t samplePrg;
+int prg8=0;
+uint16_t samplePrg;
 // volatile bool is_8bitchipmode = false;
 
-volatile uint32_t ratchet_counts=1;
+const float sample_mul[32] = {  (float)s0_raw_len / 2.0f -1  , (float)s1_raw_len / 2.0f -1  , (float)s2_raw_len / 2.0f -1  , (float)s3_raw_len / 2.0f -1 ,
+                                (float)s4_raw_len / 2.0f -1  , (float)s5_raw_len / 2.0f -1  , (float)s6_raw_len / 2.0f -1  , (float)s7_raw_len / 2.0f -1 ,
+                                (float)s8_raw_len / 2.0f -1  , (float)s9_raw_len / 2.0f -1  , (float)s10_raw_len / 2.0f -1 , (float)s11_raw_len / 2.0f -1 ,
+                                (float)s12_raw_len / 2.0f -1 , (float)s13_raw_len / 2.0f -1 , (float)s14_raw_len / 2.0f -1 , (float)s15_raw_len / 2.0f -1 ,
+                                
+                                (float)s16_raw_len / 2.0f  -1 , (float)s17_raw_len / 2.0f  -1 , (float)s18_raw_len / 2.0f  -1 , (float)s19_raw_len / 2.0f -1 ,  // replace Samples
+                                (float)s20_raw_len / 2.0f  -1 , (float)s21_raw_len / 2.0f  -1 , (float)s22_raw_len / 2.0f  -1 , (float)s23_raw_len / 2.0f -1 ,
+                                (float)s24_raw_len / 2.0f  -1 , (float)s25_raw_len / 2.0f  -1 , (float)s26_raw_len / 2.0f -1 ,  (float)s27_raw_len / 2.0f -1 ,
+                                (float)s28_raw_len / 2.0f -1 ,  (float)s29_raw_len / 2.0f -1 ,  (float)s30_raw_len / 2.0f -1 ,  (float)s31_raw_len / 2.0f -1                                     
+                              } ; // 2 bytes  as one sample -> safe as float
+
+const uint16_t * samples [32] = { (uint16_t*)&s0_raw,   (uint16_t*)&s1_raw,  (uint16_t*)&s2_raw,   (uint16_t*)&s3_raw,
+                                  (uint16_t*)&s4_raw,   (uint16_t*)&s5_raw,  (uint16_t*)&s6_raw,   (uint16_t*)&s7_raw,
+                                  (uint16_t*)&s8_raw,   (uint16_t*)&s9_raw,  (uint16_t*)&s10_raw,  (uint16_t*)&s11_raw,
+                                  (uint16_t*)&s12_raw,  (uint16_t*)&s13_raw, (uint16_t*)&s14_raw,  (uint16_t*)&s15_raw, 
+
+                                  (uint16_t*)&s16_raw,  (uint16_t*)&s17_raw, (uint16_t*)&s18_raw,  (uint16_t*)&s19_raw,
+                                  (uint16_t*)&s20_raw,  (uint16_t*)&s21_raw, (uint16_t*)&s22_raw,  (uint16_t*)&s23_raw,
+                                  (uint16_t*)&s24_raw,  (uint16_t*)&s25_raw, (uint16_t*)&s26_raw,  (uint16_t*)&s27_raw,
+                                  (uint16_t*)&s28_raw,  (uint16_t*)&s29_raw, (uint16_t*)&s30_raw,  (uint16_t*)&s31_raw
+                                };
+
+
+
+uint32_t ratchet_counts=1;
 //
 //  AUDIO RENDERER callback for a single sample
 //
@@ -292,7 +245,7 @@ void renderAudio() {
 
   // Noise / S/H Output
   thea_noise+=inc_noise;
-  if(thea_noise>1.0f){
+  if(thea_noise>=1.0f){
     thea_noise-=2.0f;
     // if(!DAC->SYNCBUSY.bit.DATA0)    
     DAC->DATA[0].reg = lsfr1.next();
@@ -304,11 +257,15 @@ void renderAudio() {
       static bool noise_led=false;
       noise_led=!noise_led;
       if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
-      if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
+      // if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
     }
   }
 
+  static bool audio_clock_test=false;
+  audio_clock_test=!audio_clock_test;
+  if(audio_clock_test)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
 
+ // return;
 
 
   // SuperSQUARE Ramps generate binary pattern
@@ -371,29 +328,6 @@ void renderAudio() {
     // sox /PRJ/test1.aif  --bits 16 --encoding unsigned-integer --endian little -c 1 t1.raw
     // xxd -i t1.raw > /PRJ/IOCore/HimaliaSketch/t1.h 
     // sed -i -r 's/unsigned/const unsigned/g' /PRJ/IOCore/HimaliaSketch/t1.h 
-    const float sample_mul[32] = {  (float)s0_raw_len / 2.0f -1  , (float)s1_raw_len / 2.0f -1  , (float)s2_raw_len / 2.0f -1  , (float)s3_raw_len / 2.0f -1 ,
-                                    (float)s4_raw_len / 2.0f -1  , (float)s5_raw_len / 2.0f -1  , (float)s6_raw_len / 2.0f -1  , (float)s7_raw_len / 2.0f -1 ,
-                                    (float)s8_raw_len / 2.0f -1  , (float)s9_raw_len / 2.0f -1  , (float)s10_raw_len / 2.0f -1 , (float)s11_raw_len / 2.0f -1 ,
-                                    (float)s12_raw_len / 2.0f -1 , (float)s13_raw_len / 2.0f -1 , (float)s14_raw_len / 2.0f -1 , (float)s15_raw_len / 2.0f -1 ,
-                                    
-                                    (float)s16_raw_len / 2.0f  -1 , (float)s17_raw_len / 2.0f  -1 , (float)s18_raw_len / 2.0f  -1 , (float)s19_raw_len / 2.0f -1 ,  // replace Samples
-                                    (float)s20_raw_len / 2.0f  -1 , (float)s21_raw_len / 2.0f  -1 , (float)s22_raw_len / 2.0f  -1 , (float)s23_raw_len / 2.0f -1 ,
-                                    (float)s24_raw_len / 2.0f  -1 , (float)s25_raw_len / 2.0f  -1 , (float)s26_raw_len / 2.0f -1 ,  (float)s27_raw_len / 2.0f -1 ,
-                                    (float)s28_raw_len / 2.0f -1 ,  (float)s29_raw_len / 2.0f -1 ,  (float)s30_raw_len / 2.0f -1 ,  (float)s31_raw_len / 2.0f -1                                     
-                                  } ; // 2 bytes  as one sample -> safe as float
-    
-    const uint16_t * samples [32] = { (uint16_t*)&s0_raw,   (uint16_t*)&s1_raw,  (uint16_t*)&s2_raw,   (uint16_t*)&s3_raw,
-                                      (uint16_t*)&s4_raw,   (uint16_t*)&s5_raw,  (uint16_t*)&s6_raw,   (uint16_t*)&s7_raw,
-                                      (uint16_t*)&s8_raw,   (uint16_t*)&s9_raw,  (uint16_t*)&s10_raw,  (uint16_t*)&s11_raw,
-                                      (uint16_t*)&s12_raw,  (uint16_t*)&s13_raw, (uint16_t*)&s14_raw,  (uint16_t*)&s15_raw, 
-
-                                      (uint16_t*)&s16_raw,  (uint16_t*)&s17_raw, (uint16_t*)&s18_raw,  (uint16_t*)&s19_raw,
-                                      (uint16_t*)&s20_raw,  (uint16_t*)&s21_raw, (uint16_t*)&s22_raw,  (uint16_t*)&s23_raw,
-                                      (uint16_t*)&s24_raw,  (uint16_t*)&s25_raw, (uint16_t*)&s26_raw,  (uint16_t*)&s27_raw,
-                                      (uint16_t*)&s28_raw,  (uint16_t*)&s29_raw, (uint16_t*)&s30_raw,  (uint16_t*)&s31_raw
-                                    };
-
-
     if(leftSamples>0){
       thea_sample+=inc_sample;
       if(thea_sample>1.0f){
@@ -411,27 +345,74 @@ void renderAudio() {
 
 
 
-
-
 void loop() {
+}
+
+void loop2() {
 
   // S/H Speed -------------------------------------------------------
+  // uint32_t dwStartMicros= ;
 
-  uint16_t noise_pitch_jack = adc51.readAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
-  uint16_t noise_pitch_poti = adc51.readAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
+  while(micros() % 128 );
+
+
+  renderAudio();
+
+
+  static uint16_t noise_pitch_jack = 2048;
+  static uint16_t noise_pitch_poti = 2048;
+  static uint16_t sample_pitch_poti = 2048;
+  static uint16_t sample_pitch_jack = 2048; 
+  static uint16_t sqr_pitch_poti = 2048; 
+  static uint16_t sqr_pitch_jack = 2048; 
+  static uint16_t spread_adc = 2048; 
+  static uint16_t cv_sample_select_adc = 2048; 
+  static uint16_t prg8_smpl_select_adc = 2048; 
+  static uint16_t ratchet_adc          = 2048; 
+
+
+  static uint16_t adc_state_machine = 0;
+  adc_state_machine++;
+  adc_state_machine&=0x000f;
+
+  switch(adc_state_machine) {
+    case 0: noise_pitch_jack      = adc51.readAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
+      break;
+    case 1: noise_pitch_poti      = adc51.readAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
+      break;
+    case 2:  sample_pitch_poti    = adc51.readAnalog(PA07,ADC_Channel7,false); 
+      break;
+    case 3:  sample_pitch_jack    = adc51.readAnalog(PA06,ADC_Channel8,true);  
+      break;
+    case 4:  sqr_pitch_poti       = adc51.readAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
+      break;
+    case 5:  sqr_pitch_jack       = adc51.readAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
+      break;
+    case 6:  spread_adc           = adc51.readAnalog(PB05,ADC_Channel7,true);
+      break;
+    case 7:  cv_sample_select_adc = adc51.readAnalog(PB09,ADC_Channel3,false);
+      break;
+    case 8:  prg8_smpl_select_adc = adc51.readAnalog(PA06,ADC_Channel6,false);
+      break;
+    case 9:  ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
+      break;
+    }
+  
+  
+  
+  
   uint32_t noise_pitch_sum = ((noise_pitch_poti + noise_pitch_jack) );
   if(noise_pitch_jack>4000){  // if is connected
      noise_pitch_sum = noise_pitch_poti;
   }
 
+  
   if(noise_pitch_sum> 4095) noise_pitch_sum= 4095;
   inc_noise = adc51.adcToInc[noise_pitch_sum] * 4.0f;
   if(inc_noise> 0.99)inc_noise=0.99;
 
   // -----------------------------------------------------------------
   // SAMPLE Speed
-  uint16_t sample_pitch_poti = adc51.readAnalog(PA07,ADC_Channel7,false); 
-  uint16_t sample_pitch_jack = adc51.readAnalog(PA06,ADC_Channel8,true);  
   uint16_t sample_pitch_sum =  sample_pitch_poti;
   if(sample_pitch_jack<4095){  // if is connected
      sample_pitch_sum += sample_pitch_jack;
@@ -449,8 +430,6 @@ void loop() {
 
   // -----------------------------------------------------------------
   // SQR Speed
-  uint16_t sqr_pitch_poti = adc51.readAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
-  uint16_t sqr_pitch_jack = adc51.readAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
   uint16_t sqr_pitch_sum = ((sqr_pitch_poti + sqr_pitch_jack)  );
   if(sqr_pitch_jack > 4000)
     sqr_pitch_sum = sqr_pitch_poti;
@@ -472,7 +451,6 @@ void loop() {
     spread_bank_offset=16;
 
   // prg spread
-  uint16_t spread_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
   uint16_t spread   = MAP_RANGE(spread_adc,250,3650, 0, 15) + spread_bank_offset;
   
 
@@ -656,10 +634,6 @@ void loop() {
 
   
 
-  uint16_t cv_sample_select_adc = adc51.readAnalog(PB09,ADC_Channel3,false);
-
-
-  uint16_t prg8_smpl_select_adc = adc51.readAnalog(PA06,ADC_Channel6,false);
   if(cv_sample_select_adc < 4000 ) // if jack is conneced (no normalized)
     prg8_smpl_select_adc+=cv_sample_select_adc;
   
@@ -674,13 +648,21 @@ void loop() {
   prg8      = t_prg_select & 0x1f;
   samplePrg = t_prg_select & 0x1f;
 
-  uint16_t ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
   uint16_t ratchet_adc_select   = MAP_RANGE(ratchet_adc,250,3650, 0, 15);
 
   if(ratchet_adc_select == 15)
     ratchet_counts = 0xffffffff;
   else
     ratchet_counts = ratchet_adc_select + 1;
+
+
+
+
+
+  
+
+  // while ( (micros() - dwStartMicros) < 64 ) {	}
+
 
 /** /
 
@@ -703,5 +685,89 @@ void loop() {
   }
 /**/
 
+
+}
+
+
+
+
+
+void setup() {
+  //put your setup code here, to run once:
+
+  // First try remove DC from Ouputs  
+  dacInit();
+  DAC->DATA[0].reg = 2048;   // ca 1.5V
+  DAC->DATA[1].reg = 2048;
+  while (DAC->SYNCBUSY.bit.DATA0);
+
+  // gen sin Table
+  for(uint16_t i = 0 ; i < 256 ; i ++){
+    float phase = (float)i / 256.0f * PI * 2.0f;
+    sines[i] = (sin(phase) + 1.0) * 127.0f; 
+  }
+
+  // gen Table
+  for(uint16_t i = 0 ; i < 1024 ; i ++){
+    float clk_tempo_f = (float)i / 256.0f - 6.0f;
+    pitches[i] = pow(12,clk_tempo_f);
+  }
+
+  Serial.begin(115200);
+  // while ( !Serial ) delay(10);   // wait for native usb
+  Serial.println("Himalia");
+
+  /*
+  flash.begin();
+  Serial.println("Adafruit Serial Flash Info example");
+  Serial.print("JEDEC ID: "); Serial.println(flash.getJEDECID(), HEX);
+  Serial.print("Flash size: "); Serial.println(flash.size());
+  */
+
+  pinMode(PA13,INPUT); digitalWrite(PA13,false);
+  pinMode(PA14,INPUT); digitalWrite(PA14,false);
+  pinMode(PA15,INPUT); digitalWrite(PA15,false);
+  pinMode(PA16,INPUT); digitalWrite(PA16,false);
+  pinMode(PA17,INPUT); digitalWrite(PA17,false);
+  pinMode(PA18,INPUT); digitalWrite(PA18,false);
+
+
+  adc51.createADCMap();
+
+  pinMode(PA23,OUTPUT); // LED
+  pinMode(PB00,OUTPUT); // LED
+  pinMode(PB31,OUTPUT); // LED
+
+  pinMode(PA19,OUTPUT); // SQR1
+  pinMode(PA12,OUTPUT); // SQR2
+  pinMode(PB15,OUTPUT); // SQR1
+  pinMode(PB14,OUTPUT); // SQR1
+  pinMode(PB13,OUTPUT); // SQR1
+  pinMode(PB12,OUTPUT); // SQR1
+
+  pinMode(PA22,OUTPUT); // PWM OUT
+
+  pinMode(PB01,INPUT_PULLUP); // SQR1
+  pinMode(PA21,INPUT_PULLUP); // SQR1
+  pinMode(PB17,INPUT_PULLUP); // 8Bit or sample Button
+  pinMode(PB16,INPUT_PULLUP); // Manual Trigger
+  pinMode(PB23,INPUT_PULLUP); // Manual Trigger
+  
+
+   //uint32_t periodCounter = ((uint32_t)F_CPU * 60) / ((bpm * AtxCSequencer::CLKS_PER_QUARTER_NOTE)<<2);  //30bpm = 1000000  300bpm = 400000
+   //periodCounter >>= 3;  //default TC_CLOCK_PRESCALER_DIV8
+/*
+  // create Time for AudioSamples
+  zt4.configure(TC_CLOCK_PRESCALER_DIV8, // prescaler
+                TC_COUNTER_SIZE_8BIT,   // bit width of timer/counter
+                TC_WAVE_GENERATION_MATCH_PWM  // match style
+                );
+
+  zt4.setPeriodMatch(125, 250 , 0); // 1 match, channel 0
+  zt4.setCallback(true, TC_CALLBACK_CC_CHANNEL0, renderAudio);  // set DAC in the callback
+  zt4.enable(true);
+*/
+  for(;;)
+    loop2();
 
 }
