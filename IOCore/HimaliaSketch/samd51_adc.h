@@ -16,6 +16,7 @@ class SAMD51_ADC {
   public:
 
   float adcToInc[4096]; // public array for lookups
+  bool last_adc = true;
 
   SAMD51_ADC() {
     // analogReference(AR_EXTERNAL);
@@ -58,6 +59,7 @@ class SAMD51_ADC {
   };
 
 
+
   uint16_t readAnalog(uint16_t pin, uint16_t channel , bool adc_alt){
     pinPeripheral(pin, PIO_ANALOG);
     if(adc_alt){
@@ -81,6 +83,36 @@ class SAMD51_ADC {
     }
   };
 
+  uint16_t readLastValue(){
+    if(last_adc){
+      //while (ADC1->INTFLAG.bit.RESRDY == 0);   // Waiting for conversion to complete
+      return ADC1->RESULT.reg;
+
+    }else{
+      //while (ADC0->INTFLAG.bit.RESRDY == 0);   // Waiting for conversion to complete
+      return ADC0->RESULT.reg;
+    }
+  }
+
+  void startReadAnalog(uint16_t pin, uint16_t channel , bool adc_alt){
+    pinPeripheral(pin, PIO_ANALOG);
+    last_adc = adc_alt;
+    if(adc_alt){
+      while( ADC1->SYNCBUSY.reg & ADC_SYNCBUSY_INPUTCTRL ); //wait for sync
+      ADC1->INPUTCTRL.bit.MUXPOS = channel; // Selection for the positive ADC input
+      while( ADC1->SYNCBUSY.reg & ADC_SYNCBUSY_ENABLE ); //wait for sync
+      ADC1->CTRLA.bit.ENABLE = 0x01;             // Enable ADC    
+      while( ADC1->SYNCBUSY.reg & ADC_SYNCBUSY_ENABLE ); //wait for sync
+      ADC1->SWTRIG.bit.START = 1;
+    }else{
+      while( ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_INPUTCTRL ); //wait for sync
+      ADC0->INPUTCTRL.bit.MUXPOS = channel; // Selection for the positive ADC input
+      while( ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_ENABLE ); //wait for sync
+      ADC0->CTRLA.bit.ENABLE = 0x01;             // Enable ADC    
+      while( ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_ENABLE ); //wait for sync
+      ADC0->SWTRIG.bit.START = 1;
+    }
+  };
   // see how to compute: https://electronics.stackexchange.com/questions/278050/making-voltmeter-accepting-bipolar-input-voltage-using-a-microcontroller
   float voltageDivider(float vIn){
     const float r1 =  22000.0f;  // 20k resitor  input resistor
@@ -100,7 +132,7 @@ class SAMD51_ADC {
   };
 
   void createADCMap() {
-    const float samplingrate = 96000.0f;
+    const float samplingrate = 166666.0f*2;
     const float volt_per_octave = 1.0f;     // mode for with range
     for(float vin = -15.0f ; vin < 15.0f ; vin+=0.001f){      // lets brute force, but fast enough
       uint16_t adc_v = ADCValueByVolt(voltageDivider(vin));   // 

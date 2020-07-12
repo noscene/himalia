@@ -50,6 +50,7 @@ echo "Himalia.menu.cache.on=Enabled" >> boards.txt && \
 echo "Himalia.menu.cache.on.build.cache_flags=-DENABLE_CACHE" >> boards.txt && \
 echo "Himalia.menu.cache.off=Disabled" >> boards.txt && \
 echo "Himalia.menu.cache.off.build.cache_flags=" >> boards.txt && \
+cd /root/Arduino/libraries && git clone https://github.com/Dennis-van-Gils/SAMD51_InterruptTimer && \
 cd && \
 chmod 755 /root/uf2/utils/uf2conv.py && \
 arduino-cli lib install "Adafruit ZeroTimer Library" && \

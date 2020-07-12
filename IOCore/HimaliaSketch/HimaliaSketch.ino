@@ -4,6 +4,7 @@
 #include "Adafruit_ZeroTimer.h"
 #include "SdFat.h"
 #include "Adafruit_SPIFlash.h"
+#include "SAMD51_InterruptTimer.h"
 
 #include "samd51_adc.h"
 
@@ -178,16 +179,16 @@ static uint16_t render_prg13(uint16_t t){ return t*(t^t+(t>>15|1)^(t-1280^t)>>10
 static uint16_t render_prg14(uint16_t t){ return (t&t%255)-(t*3&t>>13&t>>6); }
 static uint16_t render_prg15(uint16_t t){ return (t+(t>>2)|(t>>5))+(t>>3)|((t>>13)|(t>>7)|(t>>11)); }
 
-static const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = {  render_prg0, render_prg1, render_prg2, render_prg3,
-                                                render_prg4, render_prg5, render_prg6, render_prg7,
-                                                render_prg8, render_prg9, render_prg10,render_prg11,
-                                                render_prg12,render_prg13,render_prg14,render_prg15,
+static const zm8BitPrg prgList[OSC8BIT_PRG_COUNT] = { render_prg0, render_prg1, render_prg2, render_prg3,
+                                                      render_prg4, render_prg5, render_prg6, render_prg7,
+                                                      render_prg8, render_prg9, render_prg10,render_prg11,
+                                                      render_prg12,render_prg13,render_prg14,render_prg15,
 
-                                                render_prg0, render_prg1, render_prg2, render_prg3,
-                                                render_prg4, render_prg5, render_prg6, render_prg7,
-                                                render_prg8, render_prg9, render_prg10,render_prg11,
-                                                render_prg12,render_prg13,render_prg14,render_prg15
-                                                };
+                                                      render_prg0, render_prg1, render_prg2, render_prg3,
+                                                      render_prg4, render_prg5, render_prg6, render_prg7,
+                                                      render_prg8, render_prg9, render_prg10,render_prg11,
+                                                      render_prg12,render_prg13,render_prg14,render_prg15
+                                                      };
 
 
 
@@ -353,7 +354,7 @@ void loop2() {
   // S/H Speed -------------------------------------------------------
   // uint32_t dwStartMicros= ;
 
-  while(micros() % 128 );
+  // while(micros() % 128 );
 
 
   renderAudio();
@@ -376,25 +377,47 @@ void loop2() {
   adc_state_machine&=0x000f;
 
   switch(adc_state_machine) {
-    case 0: noise_pitch_jack      = adc51.readAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
+    case 0: 
+      adc51.startReadAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
       break;
-    case 1: noise_pitch_poti      = adc51.readAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
+    case 1: 
+      noise_pitch_jack = adc51.readLastValue();
+      adc51.startReadAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
       break;
-    case 2:  sample_pitch_poti    = adc51.readAnalog(PA07,ADC_Channel7,false); 
+    case 2:  
+      noise_pitch_poti = adc51.readLastValue();
+      adc51.startReadAnalog(PA07,ADC_Channel7,false); 
       break;
-    case 3:  sample_pitch_jack    = adc51.readAnalog(PA06,ADC_Channel8,true);  
+    case 3:  
+      sample_pitch_poti = adc51.readLastValue();
+      adc51.startReadAnalog(PA06,ADC_Channel8,true);  
       break;
-    case 4:  sqr_pitch_poti       = adc51.readAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
+    case 4:  
+      sample_pitch_jack = adc51.readLastValue();
+      adc51.startReadAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
       break;
-    case 5:  sqr_pitch_jack       = adc51.readAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
+    case 5:  
+      sqr_pitch_poti = adc51.readLastValue();
+      adc51.startReadAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
       break;
-    case 6:  spread_adc           = adc51.readAnalog(PB05,ADC_Channel7,true);
+    case 6:  
+      sqr_pitch_jack = adc51.readLastValue();
+      adc51.startReadAnalog(PB05,ADC_Channel7,true);
       break;
-    case 7:  cv_sample_select_adc = adc51.readAnalog(PB09,ADC_Channel3,false);
+    case 7:  
+      spread_adc = adc51.readLastValue();
+      adc51.startReadAnalog(PB09,ADC_Channel3,false);
       break;
-    case 8:  prg8_smpl_select_adc = adc51.readAnalog(PA06,ADC_Channel6,false);
+    case 8:  
+      cv_sample_select_adc = adc51.readLastValue();
+      adc51.startReadAnalog(PA06,ADC_Channel6,false);
       break;
-    case 9:  ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
+    case 9:  
+      prg8_smpl_select_adc = adc51.readLastValue();
+      adc51.startReadAnalog(PB07,ADC_Channel9,true);
+      break;
+    case 10:
+      ratchet_adc = adc51.readLastValue();
       break;
     }
   
@@ -713,9 +736,9 @@ void setup() {
     pitches[i] = pow(12,clk_tempo_f);
   }
 
-  Serial.begin(115200);
+  //Serial.begin(115200);
   // while ( !Serial ) delay(10);   // wait for native usb
-  Serial.println("Himalia");
+  //Serial.println("Himalia");
 
   /*
   flash.begin();
@@ -767,7 +790,9 @@ void setup() {
   zt4.setCallback(true, TC_CALLBACK_CC_CHANNEL0, renderAudio);  // set DAC in the callback
   zt4.enable(true);
 */
-  for(;;)
-    loop2();
+
+
+  TC.startTimer(12, loop2); // 100000 usec
+  // for(;;) loop2();
 
 }
