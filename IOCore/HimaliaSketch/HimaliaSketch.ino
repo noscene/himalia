@@ -1,7 +1,7 @@
 
 #include <Wire.h>
 #include "wiring_private.h"
-#include "Adafruit_ZeroTimer.h"
+//#include "Adafruit_ZeroTimer.h"
 #include "SdFat.h"
 #include "Adafruit_SPIFlash.h"
 #include "SAMD51_InterruptTimer.h"
@@ -93,11 +93,11 @@ PA23 LED SMD Inline (BootLoader)
 
 
 
-Adafruit_ZeroTimer zt4 = Adafruit_ZeroTimer(4);
+//Adafruit_ZeroTimer zt4 = Adafruit_ZeroTimer(4);
 
-void TC4_Handler(){
-  Adafruit_ZeroTimer::timerHandler(4);
-}
+//void TC4_Handler(){
+//  Adafruit_ZeroTimer::timerHandler(4);
+//}
 
 /*
 Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS, PIN_QSPI_IO0, PIN_QSPI_IO1, PIN_QSPI_IO2, PIN_QSPI_IO3);
@@ -258,14 +258,14 @@ void renderAudio() {
       static bool noise_led=false;
       noise_led=!noise_led;
       if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
-      // if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
+      if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
     }
   }
-
+/*
   static bool audio_clock_test=false;
   audio_clock_test=!audio_clock_test;
   if(audio_clock_test)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
-
+*/
  // return;
 
 
@@ -351,22 +351,15 @@ void loop() {
 
 void loop2() {
 
-  // S/H Speed -------------------------------------------------------
-  // uint32_t dwStartMicros= ;
-
-  // while(micros() % 128 );
-
-
   renderAudio();
 
-
-  static uint16_t noise_pitch_jack = 2048;
-  static uint16_t noise_pitch_poti = 2048;
-  static uint16_t sample_pitch_poti = 2048;
-  static uint16_t sample_pitch_jack = 2048; 
-  static uint16_t sqr_pitch_poti = 2048; 
-  static uint16_t sqr_pitch_jack = 2048; 
-  static uint16_t spread_adc = 2048; 
+  static uint16_t noise_pitch_jack     = 2048;
+  static uint16_t noise_pitch_poti     = 2048;
+  static uint16_t sample_pitch_poti    = 2048;
+  static uint16_t sample_pitch_jack    = 2048; 
+  static uint16_t sqr_pitch_poti       = 2048; 
+  static uint16_t sqr_pitch_jack       = 2048; 
+  static uint16_t spread_adc           = 2048; 
   static uint16_t cv_sample_select_adc = 2048; 
   static uint16_t prg8_smpl_select_adc = 2048; 
   static uint16_t ratchet_adc          = 2048; 
@@ -648,11 +641,6 @@ void loop2() {
       spreads[0]= 1.0f;      spreads[1]= 1.792f;      spreads[2]= 2.015f;     spreads[3]= 2.392f;     spreads[4]= 3.584f;      spreads[5]= 4.523f;
       break;
 
-
-
-
-
-
   }
 
   
@@ -679,34 +667,6 @@ void loop2() {
     ratchet_counts = ratchet_adc_select + 1;
 
 
-
-
-
-  
-
-  // while ( (micros() - dwStartMicros) < 64 ) {	}
-
-
-/** /
-
-  static int dsbug = 0;
-  dsbug++;
-  if(!(dsbug % 500)){
-    Serial.print(samplePrg,DEC);
-    Serial.print(" ");
-    Serial.print(prg8_smpl_select);
-    Serial.print(" ");
-    Serial.print(prg8_smpl_select_adc,DEC);
-    Serial.print(" ");
-    Serial.print(cv_sample_select_adc,DEC);
-//    Serial.print(" PA:");
-//    Serial.print(PORT->Group[PORTA].IN.reg,BIN);
-//    Serial.print(" PB:");
-//    Serial.print(PORT->Group[PORTB].IN.reg,BIN);
-    Serial.print(" ");
-    Serial.println(spread,DEC);
-  }
-/**/
 
 
 }
@@ -793,6 +753,6 @@ void setup() {
 
 
   TC.startTimer(12, loop2); // 100000 usec
-  // for(;;) loop2();
+  //for(;;) loop2();
 
 }

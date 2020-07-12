@@ -29,11 +29,11 @@ class SAMD51_ADC {
 
     // add clk stuff from https://github.com/noscene/ArduinoCore-samd/blob/master/cores/arduino/wiring.c
     GCLK->PCHCTRL[ADC1_GCLK_ID].reg = GCLK_PCHCTRL_GEN_GCLK1_Val | (1 << GCLK_PCHCTRL_CHEN_Pos); //use clock generator 1 (48Mhz)
-    ADC1->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV8_Val;
+    ADC1->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV4_Val;
     ADC1->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
     while( ADC1->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB );  //wait for sync
 
-    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV8_Val;
+    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV4_Val;
     ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
     while( ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB );  //wait for sync
 
