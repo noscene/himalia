@@ -29,11 +29,11 @@ class SAMD51_ADC {
 
     // add clk stuff from https://github.com/noscene/ArduinoCore-samd/blob/master/cores/arduino/wiring.c
     GCLK->PCHCTRL[ADC1_GCLK_ID].reg = GCLK_PCHCTRL_GEN_GCLK1_Val | (1 << GCLK_PCHCTRL_CHEN_Pos); //use clock generator 1 (48Mhz)
-    ADC1->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV4_Val;
+    ADC1->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
     ADC1->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
     while( ADC1->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB );  //wait for sync
 
-    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV4_Val;
+    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
     ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
     while( ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB );  //wait for sync
 
@@ -131,15 +131,15 @@ class SAMD51_ADC {
     return  (v / adc_ref * bitdeep);
   };
 
-  void createADCMap() {
-    const float samplingrate = 166666.0f*2;
+  void createADCMap(float samplingrate = 166666.0f ) {
+    //const float samplingrate = 166666.0f;
     const float volt_per_octave = 1.0f;     // mode for with range
     for(float vin = -15.0f ; vin < 15.0f ; vin+=0.001f){      // lets brute force, but fast enough
       uint16_t adc_v = ADCValueByVolt(voltageDivider(vin));   // 
       if(adc_v < 4096){
         // A4 = 440Hz = 2.75V as a reference point,
         float frq =  110.0f / pow(2.0f, 2.75) * pow(2.0f, vin * volt_per_octave );  // <--- tuning stuff
-        float thea_inc = 2.0f / samplingrate * frq;
+        float thea_inc = 1.0f / samplingrate * frq;
         if(thea_inc>1.0f) thea_inc=1.0f;            // Limit nyquist
         adcToInc[adc_v]=thea_inc;                   // compute table ADC value to phase increment for ramp osc
         /** /

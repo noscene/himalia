@@ -36,7 +36,7 @@ echo "Himalia.build.usb_product=\"Himalia\"" >> boards.txt && \
 echo "Himalia.build.usb_manufacturer=\"IO Instruments\"" >> boards.txt && \
 echo "Himalia.build.board=Himalia     " >> boards.txt && \
 echo "Himalia.build.core=arduino" >> boards.txt && \
-echo "Himalia.build.extra_flags=-D__SAMD51J20A__ -DSNDCore -D__SAMD51__ {build.usb_flags} -D__FPU_PRESENT  -DARM_MATH_CM4 -mfloat-abi=hard -mfpu=fpv4-sp-d16" >> boards.txt && \
+echo "Himalia.build.extra_flags=-D__SAMD51J20A__ -DSNDCore -D__SAMD51__ {build.usb_flags} -D__FPU_PRESENT   -DCRYSTALLESS  -DARM_MATH_CM4 -mfloat-abi=hard -mfpu=fpv4-sp-d16" >> boards.txt && \
 echo "Himalia.build.ldscript=linker_scripts/gcc/flash_with_bootloader.ld" >> boards.txt && \
 echo "Himalia.build.openocdscript=openocd_scripts/arduino_zero.cfg" >> boards.txt && \
 echo "Himalia.build.variant=IOCore" >> boards.txt && \
@@ -50,6 +50,8 @@ echo "Himalia.menu.cache.on=Enabled" >> boards.txt && \
 echo "Himalia.menu.cache.on.build.cache_flags=-DENABLE_CACHE" >> boards.txt && \
 echo "Himalia.menu.cache.off=Disabled" >> boards.txt && \
 echo "Himalia.menu.cache.off.build.cache_flags=" >> boards.txt && \
+mkdir /root/Arduino && \
+mkdir /root/Arduino/libraries && \
 cd /root/Arduino/libraries && git clone https://github.com/Dennis-van-Gils/SAMD51_InterruptTimer && \
 cd && \
 chmod 755 /root/uf2/utils/uf2conv.py && \
