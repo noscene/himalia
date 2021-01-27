@@ -501,13 +501,13 @@ void loop2() {
         flt_TRS[0]= -3.0f;    flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;      flt_TRS[3]= 3.0f;      flt_TRS[4]= -3.0f;       flt_TRS[5]= 3.0f;
         sq_TRS[0]= 0.2f;      sq_TRS[1]= -0.3f;        sq_TRS[2]= -3.0f;       sq_TRS[3]= 3.0f;       sq_TRS[4]= -3.0f;        sq_TRS[5]= 3.0f;
         spreads[0]= 1.001f;   spreads[1]= 1.001f;      spreads[2]= 1.0001f;    spreads[3]= 1.0001f;   spreads[4]= 1.0001f;     spreads[5]= 1.0001f;
-                              thea[1] = thea[0]; // sync phases
+        thea[1] = thea[0]; // sync phases
         break;
       case 2:
         flt_TRS[0]= 0.2f;      flt_TRS[1]= 0.8f;        flt_TRS[2]= 0.9f;       flt_TRS[3]= 0.4f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;
         sq_TRS[0]= 0.2f;       sq_TRS[1]= -0.2f;        sq_TRS[2]= 0.4f;        sq_TRS[3]= -0.4f;        sq_TRS[4]= 0.5f;       sq_TRS[5]= 0.6f;
         spreads[0]= 1.0000f;   spreads[1]= 1.0000f;    spreads[2]= 1.0000f;    spreads[3]= 1.0000f;    spreads[4]= 1.0000f;    spreads[5]= 1.0000f;
-                              thea[1] = thea[0];     thea[2] = thea[0];      thea[3] = thea[0];       thea[4] = thea[0];      thea[5] = thea[0]; 
+        thea[1] = thea[0];     thea[2] = thea[0];      thea[3] = thea[0];       thea[4] = thea[0];      thea[5] = thea[0];  // Full SYNC!
         break;
       case 3:
         flt_TRS[0]= -3.0f;      flt_TRS[1]= 3.0f;        flt_TRS[2]= -3.0f;       flt_TRS[3]= 3.0f;       flt_TRS[4]= -3.0f;        flt_TRS[5]= 3.0f;

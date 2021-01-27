@@ -9,19 +9,30 @@
 #define MAP_RANGE(v,a,b,mi,ma) RANGE(mi,map(v,a,b,mi,ma),ma)
 
 
+// A Jack+Poti
+// D Jack+Poti
+// S Jack+Poti
+// R Jack+Poti
+// Coeff Poti klein
+// 1. Gate Jack+Button
+// 2. Gate Jack+Button
+// Loop Button
+// Mode: ADSR / 2 * AD 
+// OUT 1 Jack (DAC)
+// OUT 2 Jack (DAC)
+
+// Frontpannel
+// 8 Jacks
+// 5 Potis
+// 3 Button
+
 
 SAMD51_ADC adc51;
 const float samplerate = 48000000.0 / 4.0 / 125.0;
 const float reciprocal_sr = 1.0 / samplerate;
 
-
-
-
-float pitches[1024];
-uint8_t sines[256];
-
-
-
+//float pitches[1024];
+//uint8_t sines[256];
 
 
 //
@@ -73,7 +84,7 @@ float zm__sustain=0.5;
 float zm__coef1=1.3;
 float zm__coef2=0.0001;
 float zm__time_base = 0.2;
-bool zm__retrigger = true;
+bool  zm__retrigger = true;
 
 //
 //  AUDIO RENDERER callback for a single sample
@@ -149,6 +160,8 @@ void renderAudio() {
           zm__gate=false;
         }
 
+        // https://github.com/fdeste/ADSR/blob/master/ADSR.c#L116
+
             switch (rt_state) {
                 case env_idle:
                     // printf("i");
@@ -171,6 +184,9 @@ void renderAudio() {
                         rt_env_output = sustainLevel;
                         rt_state = env_sustain;
                     }
+                    if(zm__gate) {
+                       rt_state = env_attack;
+                    }
                     break;
                 case env_sustain:
                     // printf("S");
@@ -188,10 +204,13 @@ void renderAudio() {
                         rt_state = env_idle;
 
                     }
+                    if(zm__gate) {
+                       rt_state = env_attack;
+                    }
             }
 
-  DACValue1 = rt_env_output * 2047 + 2047;
-  DACValue0 = rt_env_output * 2047 + 2047;
+            DACValue1 = rt_env_output * 2047 + 2047;
+            DACValue0 = rt_env_output * 2047 + 2047;
 
 }
 
@@ -374,7 +393,7 @@ void setup() {
   pinMode(PB00,OUTPUT); // LED
   pinMode(PB31,OUTPUT); // LED
 
-
+/*
   // gen sin Table
   for(uint16_t i = 0 ; i < 256 ; i ++){
     float phase = (float)i / 256.0f * PI * 2.0f;
@@ -386,6 +405,7 @@ void setup() {
     float clk_tempo_f = (float)i / 256.0f - 6.0f;
     pitches[i] = pow(12,clk_tempo_f);
   }
+  */
 
   //Serial.begin(115200);
   // while ( !Serial ) delay(10);   // wait for native usb
@@ -429,7 +449,8 @@ void setup() {
 
   // Timing SampleRate
   adc51.createADCMap(50000*2); // 50Khz but pitch down by * 2
-  TC.startTimer(20, loop2); // 20 usec = 50Khz
-  // for(;;) loop2();
+  
+  TC.startTimer(16, loop2); // 20 usec = 50Khz
+  //for(;;) loop2();
 
 }
