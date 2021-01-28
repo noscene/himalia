@@ -176,6 +176,11 @@ void renderAudio() {
                         rt_env_output = 1.0;
                         rt_state = env_decay;
                     }
+                    if(!zm__gate){
+                        if(!zm__retrigger){
+                          rt_state = env_decay;
+                        }
+                    }
                     break;
                 case env_decay:
                     // printf("D");
@@ -185,7 +190,7 @@ void renderAudio() {
                         rt_state = env_sustain;
                     }
                     if(zm__gate) {
-                       rt_state = env_attack;
+                       // rt_state = env_attack;
                     }
                     break;
                 case env_sustain:
