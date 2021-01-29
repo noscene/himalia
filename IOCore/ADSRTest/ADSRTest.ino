@@ -2,6 +2,7 @@
 #include "wiring_private.h"
 #include "SAMD51_InterruptTimer.h"
 #include "samd51_adc.h"
+#include "adsr_class.h"
 
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
@@ -28,17 +29,22 @@
 
 
 SAMD51_ADC adc51;
-const float samplerate = 48000000.0 / 4.0 / 125.0;
-const float reciprocal_sr = 1.0 / samplerate;
+ZM_ADSR myADSR;
 
-//float pitches[1024];
-//uint8_t sines[256];
+// 
+// Timing Parameter
+// 
+// wir machen alles in double statt float, damit ist zwar der FPU Vorteil durch m4 hin,
+// aber eine höhere Auflösung bei etwas geringer SR gibt bessere Ergebnisse
+// Ein mix aus Float/Double hatte Noise Seiteneffekte die nicht weiter verfolgt wurden
+//
 
-
+const double    samplerate = 41666.0;  // Steuert die HK Zeit auf 1Sek bei SampleRate * 10 => 10Sekunden
+const double    scale_4 = 1.0/4096.0;  // Das Brauchen wir zum scale von ADC Integers -> 0.00 ... 1.00
+const uint32_t  tc_usec_timer = 32;
 //
 //  OUTPUT AUDIO sample Data
 //
-
 uint16_t DACValue0 = 0;
 uint16_t DACValue1 = 0;
 bool     noise_led=false;
@@ -46,190 +52,57 @@ bool     noise_led=false;
 //
 //  OUTPUT AUDIO sample
 //
-void outputSample(){
-
-  if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
-  if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
-
-
+void outputSample() {
   DAC->DATA[0].reg = DACValue0;
   DAC->DATA[1].reg = DACValue1;
+  if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
+  if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
 }
 
-float calcCoef(float rate, float targetRatio) {
-    return exp(-log((1.0 + targetRatio) / targetRatio) / rate);
-}
 
-
-
-
-
-typedef enum  {
-    env_idle = 0,
-    env_attack,
-    env_decay,
-    env_sustain,
-    env_release
-} envState;
-envState        rt_state;
-float           rt_env_output;
-bool            is_trigger;
-
-float zm__trigger_level = 0.0001;
-
-float zm__attack=0.005;
-float zm__decay=0.02;
-float zm__release=0.05;
-float zm__sustain=0.5;
-float zm__coef1=1.3;
-float zm__coef2=0.0001;
-float zm__time_base = 0.2;
-bool  zm__retrigger = true;
-
-//
-//  AUDIO RENDERER callback for a single sample
-//
-
-
-        float attackRate;
-        float decayRate;
-        float releaseRate;
-        float attackCoef;
-        float decayCoef;
-        float releaseCoef;
-        float sustainLevel;
-        float attackBase;
-        float decayBase;
-        float releaseBase;
-
-void renderAudio() {
+void renderAudio(){
 
   noise_led=!noise_led;
-  //DACValue1++;
-  //DACValue0++;
 
-  //
-  // ADSR Stuff
-  //
+  bool mygate = true;
+  if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
+          (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
+    mygate=false;
+  }
 
-        
-        /*
-        if (zm__coef1 < 0.0000001)
-            zm__coef1 = 0.0000001;  // -180 dB
-        targetRatioA = zm__coef1;
-        
-        if (zm__coef2 < 0.000000001)
-            zm__coef2 = 0.000000001;  // -180 dB
-        targetRatioDR = zm__coef2;
-        */
-        
-        static uint16_t coeff_state_machine = 0;
-        coeff_state_machine++;
-        coeff_state_machine&=0x0003;
+  static bool zm_gate_before=false;
+  if(mygate != zm_gate_before)
+    myADSR.setNewGateState(mygate); // Note On/Off
+  zm_gate_before = mygate;
 
-        switch(coeff_state_machine) {
-          case 0:
-            attackRate = zm__attack * samplerate*zm__time_base;
-            attackCoef = calcCoef(attackRate, zm__coef1);
-            attackBase = (1.0 + zm__coef1) * (1.0 - attackCoef);
-            break;
-          case 1:
-            decayRate = zm__decay * samplerate*zm__time_base;
-            decayCoef = calcCoef(decayRate, zm__coef2);
-            decayBase = (sustainLevel - zm__coef2) * (1.0 - decayCoef);
-            break;
-          case 2:
-            attackRate = zm__attack * samplerate*zm__time_base;
-            attackCoef = calcCoef(attackRate, zm__coef1);
-            attackBase = (1.0 + zm__coef1) * (1.0 - attackCoef);
-            break;
-          case 3:
-            releaseRate = zm__release * samplerate*zm__time_base;
-            releaseCoef = calcCoef(releaseRate, zm__coef2);
-            releaseBase = -zm__coef2 * (1.0 - releaseCoef);
-            break;
-        }
+  
+  //  bool loop_retrigger=false;
+  if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) { // PA20 button A/B Bank
+      if(myADSR.getState()==ZM_ADSR::env_idle){
+        myADSR.setNewGateState(true);
+      }
+      if(myADSR.getState()==ZM_ADSR::env_sustain){
+        myADSR.setNewGateState(false);
+      }
+  }
 
-
-        sustainLevel = zm__sustain;
-
-
-        bool zm__gate = true;
-        if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
-                (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
-          zm__gate=false;
-        }
-
-        // https://github.com/fdeste/ADSR/blob/master/ADSR.c#L116
-
-            switch (rt_state) {
-                case env_idle:
-                    // printf("i");
-                    if(zm__retrigger || zm__gate){
-                        rt_state = env_attack;
-                    }
-                    break;
-                case env_attack:
-                    // printf("A");
-                    rt_env_output = attackBase + rt_env_output * attackCoef;
-                    if (rt_env_output >= 1.0) {
-                        rt_env_output = 1.0;
-                        rt_state = env_decay;
-                    }
-                    if(!zm__gate){
-                        if(!zm__retrigger){
-                          rt_state = env_decay;
-                        }
-                    }
-                    break;
-                case env_decay:
-                    // printf("D");
-                    rt_env_output = decayBase + rt_env_output * decayCoef;
-                    if (rt_env_output <= sustainLevel) {
-                        rt_env_output = sustainLevel;
-                        rt_state = env_sustain;
-                    }
-                    if(zm__gate) {
-                       // rt_state = env_attack;
-                    }
-                    break;
-                case env_sustain:
-                    // printf("S");
-                    if(zm__retrigger || !zm__gate){
-                        rt_state = env_release;
-                    }else{
-                        rt_env_output = zm__sustain;
-                    }
-                    break;
-                case env_release:
-                    // printf("R");
-                    rt_env_output = releaseBase + rt_env_output * releaseCoef;
-                    if (rt_env_output <= 0.0) {
-                        rt_env_output = 0.0;
-                        rt_state = env_idle;
-
-                    }
-                    if(zm__gate) {
-                       rt_state = env_attack;
-                    }
-            }
-
-            DACValue1 = rt_env_output * 2047 + 2047;
-            DACValue0 = rt_env_output * 2047 + 2047;
-
+  uint16_t rt_env_output = myADSR.process() * 2047.0 + 2047.0; // scale and convert to unipolar
+  DACValue1 = rt_env_output;
+  DACValue0 = rt_env_output;
 }
 
-
-
-void loop() {
+void loop() { // never reached
+    while(true);
 }
 
 void loop2() {
 
   //PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; 
-  outputSample();
-  renderAudio();
 
+  outputSample(); // wird immer zuerst ausgegeben um jitter durch laufzeitunterschiede zu minimieren daher ein sample delay
+  renderAudio();  // die eigenliche Sampleerzeugung
+
+  // Ab hier wir lesen abwechselnd ADC´s und berechnen neue Timing Werte
   static uint16_t noise_pitch_jack     = 2048;
   static uint16_t noise_pitch_poti     = 2048;
   static uint16_t sample_pitch_poti    = 2048;
@@ -260,6 +133,7 @@ void loop2() {
       break;
     case 3:  
       sample_pitch_poti = adc51.readLastValue();
+      myADSR.setAttackRate((double)sample_pitch_poti * (double)sample_pitch_poti * scale_4 * scale_4 * samplerate);
       adc51.startReadAnalog(PA06,ADC_Channel8,true);  
       break;
     case 4:  
@@ -268,6 +142,7 @@ void loop2() {
       break;
     case 5:  
       sqr_pitch_poti = adc51.readLastValue();
+      myADSR.setSustainLevel((double)sqr_pitch_poti * scale_4 );
       adc51.startReadAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
       break;
     case 6:  
@@ -276,6 +151,7 @@ void loop2() {
       break;
     case 7:  
       spread_adc = adc51.readLastValue();
+      myADSR.setReleaseRate((double)spread_adc * (double)spread_adc * scale_4 * scale_4 *  samplerate);
       adc51.startReadAnalog(PB09,ADC_Channel3,false);
       break;
     case 8:  
@@ -284,144 +160,34 @@ void loop2() {
       break;
     case 9:  
       prg8_smpl_select_adc = adc51.readLastValue();
+      myADSR.setTargetRatioAll( (double)prg8_smpl_select_adc * scale_4 );
       adc51.startReadAnalog(PB07,ADC_Channel9,true);
       break;
     case 10:
       ratchet_adc = adc51.readLastValue();
+      myADSR.setDecayRate( (double)ratchet_adc * (double)ratchet_adc * scale_4 * scale_4 * samplerate );
+      break;
+    case 11:
+      break;
+    case 12:
+      break;
+    case 13:
+      break;
+    case 14:
+      break;
+    case 15:
       break;
     }
-  
-  
-  
-  
-  uint32_t noise_pitch_sum = ((noise_pitch_poti + noise_pitch_jack) );
-  if(noise_pitch_jack>4000){  // if is connected
-     noise_pitch_sum = noise_pitch_poti;
-  }
 
-  
-  if(noise_pitch_sum> 4095) noise_pitch_sum= 4095;
-  //inc_noise = adc51.adcToInc[noise_pitch_sum] * 4.0f;
-  //if(inc_noise> 0.99)inc_noise=0.99;
-
-  // -----------------------------------------------------------------
-  // SAMPLE Speed
-  uint16_t sample_pitch_sum =  sample_pitch_poti;
-  if(sample_pitch_jack<4095){  // if is connected
-     sample_pitch_sum += sample_pitch_jack;
-  }
-  if(sample_pitch_sum > 4095){
-    sample_pitch_sum = 4095;
-  }
-
-  const float scale_4 = 1.0/4096.0;
-  zm__attack = (float)sample_pitch_sum * scale_4 ;
-  zm__attack = zm__attack * zm__attack * zm__attack;
-
-  // float clk_sample_f = pitches[(sample_pitch_sum >> 2) & 0x03ff];  // Limit 1024 array size
-  //inc_sample = clk_sample_f ;
-  //if(inc_sample>1.0f) inc_sample=1.0f;
-  //if(inc_sample<0.000001f) inc_sample=0.000001f;  
-
-  // 8Bit ChipMusic Speed
-  //inc_8bit =  inc_sample;
-
-  // -----------------------------------------------------------------
-  // SQR Speed
-  uint16_t sqr_pitch_sum = ((sqr_pitch_poti + sqr_pitch_jack)  );
-  if(sqr_pitch_jack > 4000)
-    sqr_pitch_sum = sqr_pitch_poti;
-
-  if(sqr_pitch_sum>4000) sqr_pitch_sum=4000;
-
-  zm__sustain = (float)sqr_pitch_sum * scale_4;
-
-  zm__decay = (float)ratchet_adc * scale_4 ;
-  zm__decay = zm__decay * zm__decay * zm__decay;
-
-  zm__release = (float)spread_adc * scale_4 ;
-  zm__release = zm__release * zm__release * zm__release;
-
-  zm__coef1 = (float)prg8_smpl_select_adc * scale_4 ;
-  zm__coef1 = zm__coef1 * zm__coef1 * zm__coef1;
-  zm__coef2 = zm__coef1;
-
-  if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) // PA20 button A/B Bank
-    zm__retrigger=true;
-  else{
-    zm__retrigger=false;
-  }
-
-
-  // float inc_sqr = adc51.adcToInc[sqr_pitch_sum];
-  
-/*
-  // Bank Switch
-  uint16_t spread_bank_offset=0;
-  if(!(PORT->Group[PORTA].IN.reg & (1ul << 21))) // PA21 button A/B Bank
-    spread_bank_offset=16;
-
-  // prg spread
-  uint16_t spread   = MAP_RANGE(spread_adc,250,3650, 0, 15) + spread_bank_offset;
-  */
-
-  
-/*
-  if(cv_sample_select_adc < 4000 ) // if jack is conneced (no normalized)
-    prg8_smpl_select_adc+=cv_sample_select_adc;
-  int16_t prg8_smpl_select    = MAP_RANGE(prg8_smpl_select_adc,210,3650, 0, 15);
-  uint16_t smpl_bank_offset=0;
-*/
-
-
-  
-
-
-  // uint16_t ratchet_adc_select   = MAP_RANGE(ratchet_adc,250,3650, 0, 15);
-
-
-
-  // PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
-
-
+   // DAC->DATA[1].reg=1000;
 }
-
-
-
-
 
 void setup() {
   //put your setup code here, to run once:
-
   // First try remove DC from Ouputs  
   pinMode(PA23,OUTPUT); // LED
   pinMode(PB00,OUTPUT); // LED
   pinMode(PB31,OUTPUT); // LED
-
-/*
-  // gen sin Table
-  for(uint16_t i = 0 ; i < 256 ; i ++){
-    float phase = (float)i / 256.0f * PI * 2.0f;
-    sines[i] = (sin(phase) + 1.0) * 127.0f; 
-  }
-
-  // gen Table
-  for(uint16_t i = 0 ; i < 1024 ; i ++){
-    float clk_tempo_f = (float)i / 256.0f - 6.0f;
-    pitches[i] = pow(12,clk_tempo_f);
-  }
-  */
-
-  //Serial.begin(115200);
-  // while ( !Serial ) delay(10);   // wait for native usb
-  //Serial.println("Himalia");
-
-  /*
-  flash.begin();
-  Serial.println("Adafruit Serial Flash Info example");
-  Serial.print("JEDEC ID: "); Serial.println(flash.getJEDECID(), HEX);
-  Serial.print("Flash size: "); Serial.println(flash.size());
-  */
 
   pinMode(PA13,INPUT); digitalWrite(PA13,false);
   pinMode(PA14,INPUT); digitalWrite(PA14,false);
@@ -429,8 +195,6 @@ void setup() {
   pinMode(PA16,INPUT); digitalWrite(PA16,false);
   pinMode(PA17,INPUT); digitalWrite(PA17,false);
   pinMode(PA18,INPUT); digitalWrite(PA18,false);
-
-
 
   pinMode(PA19,OUTPUT); // SQR1
   pinMode(PA12,OUTPUT); // SQR2
@@ -455,7 +219,13 @@ void setup() {
   // Timing SampleRate
   adc51.createADCMap(50000*2); // 50Khz but pitch down by * 2
   
-  TC.startTimer(16, loop2); // 20 usec = 50Khz
-  //for(;;) loop2();
+  /*
+  while(1){
+    while(SysTick->VAL & 0xff); // Keine gute Idee da wir ja nicht jeden systick finden, evtl unten noch Bitmask setzen ?!?!?!
+    loop2();
+  } */
+  TC.startTimer(tc_usec_timer, loop2); // 32 usec , wenn hier zu schnell jitter + ADC Lesefehler
+
+  //for(;;) loop2();  // Keine Gute idee, da jitter durch Laufzeitunterschiede!
 
 }
