@@ -34,7 +34,7 @@ ZM_ADSR myADSR;
 // 
 // Timing Parameter
 // 
-// wir machen alles in double statt float, damit ist zwar der FPU Vorteil durch m4 hin,
+// wir machen alles in double statt float, damit ist zwar der FPU Vorteil durch m4 weg,
 // aber eine höhere Auflösung bei etwas geringer SR gibt bessere Ergebnisse
 // Ein mix aus Float/Double hatte Noise Seiteneffekte die nicht weiter verfolgt wurden
 //
@@ -133,7 +133,7 @@ void loop2() {
       break;
     case 3:  
       sample_pitch_poti = adc51.readLastValue();
-      myADSR.setAttackRate((double)sample_pitch_poti * (double)sample_pitch_poti * scale_4 * scale_4 * samplerate);
+      myADSR.setAttackRate((double)sample_pitch_poti * (double)sample_pitch_poti * (double)sample_pitch_poti * scale_4 * scale_4 * scale_4 * samplerate);
       adc51.startReadAnalog(PA06,ADC_Channel8,true);  
       break;
     case 4:  
@@ -160,7 +160,7 @@ void loop2() {
       break;
     case 9:  
       prg8_smpl_select_adc = adc51.readLastValue();
-      myADSR.setTargetRatioAll( (double)prg8_smpl_select_adc * scale_4 );
+      myADSR.setTargetRatioAll( (double)prg8_smpl_select_adc * (double)prg8_smpl_select_adc * scale_4 * scale_4 );
       adc51.startReadAnalog(PB07,ADC_Channel9,true);
       break;
     case 10:
