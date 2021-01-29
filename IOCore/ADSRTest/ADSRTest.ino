@@ -17,7 +17,8 @@
 // Coeff Poti klein
 // 1. Gate Jack+Button
 // 2. Gate Jack+Button
-// Loop Button
+// Loop Button via A/B Button
+// Freece ADC Values with 8Bit Button
 // Mode: ADSR / 2 * AD 
 // OUT 1 Jack (DAC)
 // OUT 2 Jack (DAC)
@@ -36,12 +37,27 @@ ZM_ADSR myADSR;
 // 
 // wir machen alles in double statt float, damit ist zwar der FPU Vorteil durch m4 weg,
 // aber eine höhere Auflösung bei etwas geringer SR gibt bessere Ergebnisse
-// Ein mix aus Float/Double hatte Noise Seiteneffekte die nicht weiter verfolgt wurden
+// Optinal nur calcCoef auf float Basis für schnellere SampleRates
+// Ein mix aus Float/Double hatte Noise Seiteneffekte die nicht weiter verfolgt wurden: vermutlich schräges verhalten durch Laufzeitunterschiede bei zu kurzen tc_usec_timer
+// Stichwort: Float denormalized Performance
 //
 
-const double    samplerate = 41666.0;  // Steuert die HK Zeit auf 1Sek bei SampleRate * 10 => 10Sekunden
-const double    scale_4 = 1.0/4096.0;  // Das Brauchen wir zum scale von ADC Integers -> 0.00 ... 1.00
-const uint32_t  tc_usec_timer = 32;
+// TODO: noch ADC Bereiche mit MAP_RANGE Calibrieren
+// TODO: noch CV Spannung aufaddieren und LUT auf 8192 setzen
+// min 80uS ADSR Cooef kann mit Double Arbeiten 12.5Khz
+// min 60uS ADSR Cooef mit float ca 16.6KHz
+// 
+const double    scale_4 = 1.0/4096.0;   // Das Brauchen wir zum scale von ADC Integers -> 0.00 ... 1.00
+const uint32_t  tc_usec_timer = 60;     // 38 == 26.kKhz | 40 == 25KH | 80 == 12.5Khz Achtung darunter Probleme Attack/Sustain Reading from ADC´s !!!!
+const double    samplerate        = 1.0 / (double)tc_usec_timer * 1000000.0;  // Steuert die HK Zeit auf 1Sek bei SampleRate * 10 => 10Sekunden
+const double    max_attack_time   = samplerate  * 1;  // Time Range for ADSR
+const double    max_release_time  = samplerate * 10;  // Time Range for ADSR
+double lut[4096]; // lookupTable adc -> double Value 1/4096 ^ 3
+
+// Use this to figure out best tc_usec_timer value!!!!
+#define DEBUG_TIMING_BY_SQR_OUT 1
+
+
 //
 //  OUTPUT AUDIO sample Data
 //
@@ -56,27 +72,31 @@ void outputSample() {
   DAC->DATA[0].reg = DACValue0;
   DAC->DATA[1].reg = DACValue1;
   if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
-  if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else   PORT->Group[PORTA].OUTSET.reg = 1ul << 22;   // SQUARE OUT NOISE
+  // if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else      // SQUARE OUT NOISE
+
+  #ifndef DEBUG_TIMING_BY_SQR_OUT  
+    if(noise_led)  PORT->Group[PORTA].OUTSET.reg = 1ul << 22; else PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
+  #endif
+
 }
 
 
-void renderAudio(){
+void renderAudio() {
 
-  noise_led=!noise_led;
-
+  // Gate Status checken
   bool mygate = true;
   if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
-          (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
-    mygate=false;
+        (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
+    mygate=false; // no gate from Button or Jack
   }
 
+  // if change gate...handle in adsr
   static bool zm_gate_before=false;
   if(mygate != zm_gate_before)
     myADSR.setNewGateState(mygate); // Note On/Off
   zm_gate_before = mygate;
-
   
-  //  bool loop_retrigger=false;
+  //  AutoLoop ?
   if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) { // PA20 button A/B Bank
       if(myADSR.getState()==ZM_ADSR::env_idle){
         myADSR.setNewGateState(true);
@@ -86,6 +106,14 @@ void renderAudio(){
       }
   }
 
+  // LED On when in AttackPhase
+  if(myADSR.getState()==ZM_ADSR::env_attack){
+    noise_led=false;  // LED ON
+  }else{
+    noise_led=true;
+  }
+
+  // Scale to Integer and mark for Output
   uint16_t rt_env_output = myADSR.process() * 2047.0 + 2047.0; // scale and convert to unipolar
   DACValue1 = rt_env_output;
   DACValue0 = rt_env_output;
@@ -95,9 +123,14 @@ void loop() { // never reached
     while(true);
 }
 
+
+
 void loop2() {
 
-  //PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; 
+  #ifdef DEBUG_TIMING_BY_SQR_OUT
+  PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
+  #endif
+
 
   outputSample(); // wird immer zuerst ausgegeben um jitter durch laufzeitunterschiede zu minimieren daher ein sample delay
   renderAudio();  // die eigenliche Sampleerzeugung
@@ -119,6 +152,13 @@ void loop2() {
   adc_state_machine++;
   adc_state_machine&=0x000f;
 
+  // Freese ADC READING!!!!
+  bool is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);  
+  if(!is_8bitchipmode){
+      adc_state_machine=14;
+  }
+
+
   switch(adc_state_machine) {
     case 0: 
       adc51.startReadAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
@@ -133,7 +173,7 @@ void loop2() {
       break;
     case 3:  
       sample_pitch_poti = adc51.readLastValue();
-      myADSR.setAttackRate((double)sample_pitch_poti * (double)sample_pitch_poti * (double)sample_pitch_poti * scale_4 * scale_4 * scale_4 * samplerate);
+      myADSR.setAttackRate(lut[sample_pitch_poti] *  max_attack_time );
       adc51.startReadAnalog(PA06,ADC_Channel8,true);  
       break;
     case 4:  
@@ -151,7 +191,7 @@ void loop2() {
       break;
     case 7:  
       spread_adc = adc51.readLastValue();
-      myADSR.setReleaseRate((double)spread_adc * (double)spread_adc * scale_4 * scale_4 *  samplerate);
+      myADSR.setReleaseRate( lut[spread_adc] *  max_release_time);
       adc51.startReadAnalog(PB09,ADC_Channel3,false);
       break;
     case 8:  
@@ -160,12 +200,12 @@ void loop2() {
       break;
     case 9:  
       prg8_smpl_select_adc = adc51.readLastValue();
-      myADSR.setTargetRatioAll( (double)prg8_smpl_select_adc * (double)prg8_smpl_select_adc * scale_4 * scale_4 );
+      myADSR.setTargetRatioAll( lut[prg8_smpl_select_adc] );
       adc51.startReadAnalog(PB07,ADC_Channel9,true);
       break;
     case 10:
       ratchet_adc = adc51.readLastValue();
-      myADSR.setDecayRate( (double)ratchet_adc * (double)ratchet_adc * scale_4 * scale_4 * samplerate );
+      myADSR.setDecayRate(lut[ratchet_adc] * max_release_time );
       break;
     case 11:
       break;
@@ -179,7 +219,9 @@ void loop2() {
       break;
     }
 
-   // DAC->DATA[1].reg=1000;
+   #ifdef DEBUG_TIMING_BY_SQR_OUT
+   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; 
+   #endif
 }
 
 void setup() {
@@ -216,6 +258,12 @@ void setup() {
   DAC->DATA[1].reg = 2048;
   while (DAC->SYNCBUSY.bit.DATA0);
 
+  for(int i = 0 ; i < 4096; i++) {
+    double scale = (double) i *  1.0/4096.0;
+    lut[i] = scale * scale * scale ;
+  }
+
+
   // Timing SampleRate
   adc51.createADCMap(50000*2); // 50Khz but pitch down by * 2
   
@@ -224,6 +272,8 @@ void setup() {
     while(SysTick->VAL & 0xff); // Keine gute Idee da wir ja nicht jeden systick finden, evtl unten noch Bitmask setzen ?!?!?!
     loop2();
   } */
+
+  // Achtung! diese Variante erzeugt Doubletten, also Runtime checken
   TC.startTimer(tc_usec_timer, loop2); // 32 usec , wenn hier zu schnell jitter + ADC Lesefehler
 
   //for(;;) loop2();  // Keine Gute idee, da jitter durch Laufzeitunterschiede!

@@ -27,8 +27,6 @@ class ZM_ADSR {
     double      releaseBase;
 	int         gate;
 
-    
-
     ZM_ADSR() {
         setAttackRate(0.3);
         setDecayRate(0.2);
@@ -38,10 +36,10 @@ class ZM_ADSR {
         setTargetRatioDR(0.01);
     };
 
-    double calcCoef(double rate, double targetRatio) {
-        if(rate <= 0.0)
-            return 0.0;
-        return exp(-log((1.0 + targetRatio) / targetRatio) / rate);
+    float calcCoef(float rate, float targetRatio) {  
+        if(rate <= 0.0f)
+            return 0.0f;
+        return expf(-logf((1.0 + targetRatio) / targetRatio) / rate); // need a lot of time about 70uS
     };
 
     void setAttackRate( double rate) {
