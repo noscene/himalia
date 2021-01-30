@@ -3,6 +3,7 @@
 #include "SAMD51_InterruptTimer.h"
 #include "samd51_adc.h"
 #include "adsr_class.h"
+#include "lfo_wave.h"
 
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
@@ -47,8 +48,8 @@ ZM_ADSR myADSR;
 // min 80uS ADSR Cooef kann mit Double Arbeiten 12.5Khz
 // min 60uS ADSR Cooef mit float ca 16.6KHz
 // 
-const double    scale_4 = 1.0/4096.0;   // Das Brauchen wir zum scale von ADC Integers -> 0.00 ... 1.00
-const uint32_t  tc_usec_timer = 60;     // 38 == 26.kKhz | 40 == 25KH | 80 == 12.5Khz Achtung darunter Probleme Attack/Sustain Reading from ADC´s !!!!
+const double    scale_4           = 1.0/4096.0;   // Das Brauchen wir zum scale von ADC Integers -> 0.00 ... 1.00
+const uint32_t  tc_usec_timer     = 60;     // 38 == 26.kKhz | 40 == 25KH | 80 == 12.5Khz Achtung darunter Probleme Attack/Sustain Reading from ADC´s !!!!
 const double    samplerate        = 1.0 / (double)tc_usec_timer * 1000000.0;  // Steuert die HK Zeit auf 1Sek bei SampleRate * 10 => 10Sekunden
 const double    max_attack_time   = samplerate  * 1;  // Time Range for ADSR
 const double    max_release_time  = samplerate * 10;  // Time Range for ADSR
@@ -56,6 +57,14 @@ double lut[4096]; // lookupTable adc -> double Value 1/4096 ^ 3
 
 // Use this to figure out best tc_usec_timer value!!!!
 #define DEBUG_TIMING_BY_SQR_OUT 1
+
+
+//
+// LFO
+//
+float thea_sample       = 0.0f;
+float inc_sample        = 0.01f;
+uint16_t sample_offset  = 0;
 
 
 //
@@ -72,7 +81,6 @@ void outputSample() {
   DAC->DATA[0].reg = DACValue0;
   DAC->DATA[1].reg = DACValue1;
   if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
-  // if(noise_led)  PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; else      // SQUARE OUT NOISE
 
   #ifndef DEBUG_TIMING_BY_SQR_OUT  
     if(noise_led)  PORT->Group[PORTA].OUTSET.reg = 1ul << 22; else PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
@@ -115,8 +123,42 @@ void renderAudio() {
 
   // Scale to Integer and mark for Output
   uint16_t rt_env_output = myADSR.process() * 2047.0 + 2047.0; // scale and convert to unipolar
+  // DACValue1 = rt_env_output;
   DACValue1 = rt_env_output;
-  DACValue0 = rt_env_output;
+
+
+  // LFO
+
+  // Forward Button + Trigger to LED
+  static uint32_t leftSamples = 1000000;
+  static bool     previous_trigger = false;
+  if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
+        (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
+    PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;             // trigger fire!
+    previous_trigger=false;
+  } else {
+    PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
+    if(!previous_trigger){          // check for edge
+      leftSamples = 1000000; // ratchet_counts;
+      thea_sample=0.0f; // retrigger 
+    }
+    previous_trigger=true;
+  }
+
+
+  if(leftSamples>0){
+    thea_sample+=inc_sample;
+    if(thea_sample>1.0f){
+      thea_sample=0.0f;
+      leftSamples--;
+    }
+
+    float sample_raw_len =  4095.0;
+
+    DACValue0 = lfo_wave[sample_offset + (uint32_t)(sample_raw_len * thea_sample)];  // extend to 32 Bit
+  }
+
+
 }
 
 void loop() { // never reached
@@ -158,6 +200,7 @@ void loop2() {
       adc_state_machine=14;
   }
 
+  float pitch_lfo;
 
   switch(adc_state_machine) {
     case 0: 
@@ -169,11 +212,14 @@ void loop2() {
       break;
     case 2:  
       noise_pitch_poti = adc51.readLastValue();
+      sample_offset = noise_pitch_poti*6;
       adc51.startReadAnalog(PA07,ADC_Channel7,false); 
       break;
     case 3:  
       sample_pitch_poti = adc51.readLastValue();
       myADSR.setAttackRate(lut[sample_pitch_poti] *  max_attack_time );
+      pitch_lfo = 4096 - sample_pitch_poti;
+      inc_sample = 1.0 / (float) pitch_lfo * 1.0 / (float) pitch_lfo * 250.0;
       adc51.startReadAnalog(PA06,ADC_Channel8,true);  
       break;
     case 4:  
