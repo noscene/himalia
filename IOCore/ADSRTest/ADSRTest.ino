@@ -56,7 +56,7 @@ const double    max_release_time  = samplerate * 10;  // Time Range for ADSR
 double lut[4096]; // lookupTable adc -> double Value 1/4096 ^ 3
 
 // Use this to figure out best tc_usec_timer value!!!!
-#define DEBUG_TIMING_BY_SQR_OUT 1
+// #define DEBUG_TIMING_BY_SQR_OUT 1
 
 
 //
@@ -108,6 +108,7 @@ void renderAudio() {
   if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) { // PA20 button A/B Bank
       if(myADSR.getState()==ZM_ADSR::env_idle){
         myADSR.setNewGateState(true);
+        thea_sample=0.0f;
       }
       if(myADSR.getState()==ZM_ADSR::env_sustain){
         myADSR.setNewGateState(false);
