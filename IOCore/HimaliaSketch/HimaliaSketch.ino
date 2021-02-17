@@ -161,7 +161,7 @@ PA23 LED SMD Inline (BootLoader)
    
     
     // uncomment to Write Fuses
-    return;
+    // return;
 
 
     // V2Memory::Flash::UserPage::write(data);
@@ -250,6 +250,7 @@ uint8_t sines[256];
 void setup() {
   //put your setup code here, to run once:
 
+  fixBOD33();
   // First try remove DC from Ouputs  
   dacInit();
   DAC->DATA[0].reg = 2048;   // ca 1.5V
@@ -585,7 +586,7 @@ void loop() {
 
   // prg spread
   uint16_t spread_adc = adc51.readAnalog(PB05,ADC_Channel7,true);
-  uint16_t spread   = MAP_RANGE(spread_adc,250,3650, 0, 15) + spread_bank_offset;
+  uint16_t spread   = MAP_RANGE(spread_adc,250,3700, 0, 15) + spread_bank_offset;
   
 
 
@@ -775,7 +776,7 @@ void loop() {
   if(cv_sample_select_adc < 4000 ) // if jack is conneced (no normalized)
     prg8_smpl_select_adc+=cv_sample_select_adc;
   
-  int16_t prg8_smpl_select    = MAP_RANGE(prg8_smpl_select_adc,210,3650, 0, 15);
+  int16_t prg8_smpl_select    = MAP_RANGE(prg8_smpl_select_adc,310,3750, 0, 15);
   
   uint16_t smpl_bank_offset=0;
   if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) // PA20 button A/B Bank
@@ -787,7 +788,7 @@ void loop() {
   samplePrg = t_prg_select & 0x1f;
 
   uint16_t ratchet_adc          = adc51.readAnalog(PB07,ADC_Channel9,true);
-  uint16_t ratchet_adc_select   = MAP_RANGE(ratchet_adc,250,3650, 0, 15);
+  uint16_t ratchet_adc_select   = MAP_RANGE(ratchet_adc,300,3750, 0, 15);
 
   if(ratchet_adc_select == 15)
     ratchet_counts = 0xffffffff;
