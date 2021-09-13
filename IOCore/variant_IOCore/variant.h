@@ -151,7 +151,11 @@ extern "C"
 #define PB23 74
 #define PB07 75
 
+#define PA00 76
 
+#define PA08 17
+#define PA09 18
+#define PA11 20
 
 // CS42448
 #define CS42448_RESET PB15

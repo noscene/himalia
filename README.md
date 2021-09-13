@@ -24,8 +24,7 @@ if using mac you can mount /Volumes dir into docker container to copy image afte
 you need connect the himalia module by micro usb and double tap the reset button to enter bootloader mode.
 ```
 cd ~/Documents/GitHub/Himalia
-export MOUNTPOINT=`pwd`
-docker run -it -v $MOUNTPOINT:/PRJ -v /Volumes:/USB  -v $MOUNTPOINT/IOCore/variant_IOCore:/root/.arduino15/packages/dadamachines_doppler/hardware/samd/1.2.9/variants/IOCore  iocore bash
+export MOUNTPOINT=`pwd` && docker run -it -v $MOUNTPOINT:/PRJ -v /Volumes:/USB  -v $MOUNTPOINT/IOCore/variant_IOCore:/root/.arduino15/packages/dadamachines_doppler/hardware/samd/1.2.9/variants/IOCore  iocore bash
 ```
 
 ### inside docker: build all in one

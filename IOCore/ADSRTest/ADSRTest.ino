@@ -158,7 +158,7 @@ ZM_ADSR myADSR;
 // min 60uS ADSR Cooef mit float ca 16.6KHz
 // 
 const double    scale_4           = 1.0/4096.0;   // Das Brauchen wir zum scale von ADC Integers -> 0.00 ... 1.00
-const uint32_t  tc_usec_timer     = 60;     // 38 == 26.kKhz | 40 == 25KH | 80 == 12.5Khz Achtung darunter Probleme Attack/Sustain Reading from ADC´s !!!!
+const uint32_t  tc_usec_timer     = 80;     // 38 == 26.kKhz | 40 == 25KH | 80 == 12.5Khz Achtung darunter Probleme Attack/Sustain Reading from ADC´s !!!!
 const double    samplerate        = 1.0 / (double)tc_usec_timer * 1000000.0;  // Steuert die HK Zeit auf 1Sek bei SampleRate * 10 => 10Sekunden
 const double    max_attack_time   = samplerate  * 1;  // Time Range for ADSR
 const double    max_release_time  = samplerate * 10;  // Time Range for ADSR
@@ -181,7 +181,7 @@ uint16_t sample_offset  = 0;
 //
 uint16_t DACValue0 = 0;
 uint16_t DACValue1 = 0;
-bool     noise_led=false;
+// bool     noise_led=false;
 
 //
 //  OUTPUT AUDIO sample
@@ -189,23 +189,30 @@ bool     noise_led=false;
 void outputSample() {
   DAC->DATA[0].reg = DACValue0;
   DAC->DATA[1].reg = DACValue1;
+  /*
   if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
 
   #ifndef DEBUG_TIMING_BY_SQR_OUT  
     if(noise_led)  PORT->Group[PORTA].OUTSET.reg = 1ul << 22; else PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
   #endif
-
+  */
 }
 
 
 void renderAudio() {
 
   // Gate Status checken
-  bool mygate = true;
-  if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
-        (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
-    mygate=false; // no gate from Button or Jack
+  bool mygate = false;
+  if ( ! (PORT->Group[PORTA].IN.reg & (1ul << 00))  ) {  // Trigger from Button
+      mygate=true; // no gate from Button or Jack
   }
+  if ( (PORT->Group[PORTA].IN.reg & (1ul << 18))   ) {  // Trigger from jack
+      mygate=true; // no gate from Button or Jack
+  }  
+
+  if(mygate)      PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
+  else            PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;
+
 
   // if change gate...handle in adsr
   static bool zm_gate_before=false;
@@ -214,25 +221,27 @@ void renderAudio() {
   zm_gate_before = mygate;
   
   //  AutoLoop ?
-  if(!(PORT->Group[PORTA].IN.reg & (1ul << 20))) { // PA20 button A/B Bank
+  if(!(PORT->Group[PORTA].IN.reg & (1ul << 21))) { // PA21 ADSR Loop
       if(myADSR.getState()==ZM_ADSR::env_idle){
         myADSR.setNewGateState(true);
-        thea_sample=0.0f;
+        // thea_sample=0.0f;
       }
       if(myADSR.getState()==ZM_ADSR::env_sustain){
         myADSR.setNewGateState(false);
       }
   }
 
+  /*
   // LED On when in AttackPhase
   if(myADSR.getState()==ZM_ADSR::env_attack){
     noise_led=false;  // LED ON
   }else{
     noise_led=true;
   }
+  */
 
   // Scale to Integer and mark for Output
-  uint16_t rt_env_output = myADSR.process() * 2047.0 + 2047.0; // scale and convert to unipolar
+  uint16_t rt_env_output = myADSR.process() * 4095.0; // scale and convert to unipolar
   // DACValue1 = rt_env_output;
   DACValue1 = rt_env_output;
 
@@ -244,10 +253,10 @@ void renderAudio() {
   static bool     previous_trigger = false;
   if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
         (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
-    PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;             // trigger fire!
+    // PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;             // trigger fire!
     previous_trigger=false;
   } else {
-    PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
+    // PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
     if(!previous_trigger){          // check for edge
       leftSamples = 1000000; // ratchet_counts;
       thea_sample=0.0f; // retrigger 
@@ -259,9 +268,16 @@ void renderAudio() {
   if(leftSamples>0){
     thea_sample+=inc_sample;
     if(thea_sample>1.0f){
-      thea_sample=0.0f;
+      thea_sample-=1.0f;
       leftSamples--;
     }
+
+    if(thea_sample<0.2f){
+        PORT->Group[PORTB].OUTSET.reg = 1ul << 30;
+    }else  {
+        PORT->Group[PORTB].OUTCLR.reg = 1ul << 30;
+    }         
+
 
     float sample_raw_len =  4095.0;
 
@@ -280,7 +296,7 @@ void loop() { // never reached
 void loop2() {
 
   #ifdef DEBUG_TIMING_BY_SQR_OUT
-  PORT->Group[PORTA].OUTSET.reg = 1ul << 22;
+  PORT->Group[PORTA].OUTSET.reg = 1ul << 17;  // end of attack
   #endif
 
 
@@ -288,17 +304,25 @@ void loop2() {
   renderAudio();  // die eigenliche Sampleerzeugung
 
   // Ab hier wir lesen abwechselnd ADC´s und berechnen neue Timing Werte
-  static uint16_t noise_pitch_jack     = 2048;
-  static uint16_t noise_pitch_poti     = 2048;
-  static uint16_t sample_pitch_poti    = 2048;
-  static uint16_t sample_pitch_jack    = 2048; 
-  static uint16_t sqr_pitch_poti       = 2048; 
-  static uint16_t sqr_pitch_jack       = 2048; 
-  static uint16_t spread_adc           = 2048; 
-  static uint16_t cv_sample_select_adc = 2048; 
-  static uint16_t prg8_smpl_select_adc = 2048; 
-  static uint16_t ratchet_adc          = 2048; 
+  static uint16_t noise_pitch_jack          = 2048;
+  static uint16_t lfo_wave_endlesspoti1     = 2048;
+  static uint16_t lfo_wave_endlesspoti2     = 2048;
+  static uint16_t lfo_wave_cv               = 2048;
 
+  static uint16_t lfo_speed_poti       = 2048;
+  static uint16_t lfo_speed_cv         = 2048;
+
+
+  static uint16_t adsr_all_ratio       = 2048; 
+  static uint16_t ratchet_adc          = 2048; 
+  static uint16_t adsr_cv_attack       = 2048;
+  static uint16_t adsr_cv_decay        = 2048;
+  static uint16_t adsr_cv_sustain      = 2048;
+  static uint16_t adsr_cv_release      = 2048;  
+  static uint16_t adsr_slider_attack   = 2048; 
+  static uint16_t adsr_slider_decay    = 2048; 
+  static uint16_t adsr_slider_sustain  = 2048; 
+  static uint16_t adsr_slider_release  = 2048; 
 
   static uint16_t adc_state_machine = 0;
   adc_state_machine++;
@@ -314,69 +338,89 @@ void loop2() {
 
   switch(adc_state_machine) {
     case 0: 
-      adc51.startReadAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
+      adsr_cv_release = adc51.readLastValue();
+      // adc51.startReadAnalog(PB01,ADC_Channel13,false);      // Buchse #2 (erste Digitale) Signal: Digital_Noise_Pitch normalized 12v
+      adc51.startReadAnalog(PA07,ADC_Channel7,false);      // Poti LFO Speed
       break;
     case 1: 
-      noise_pitch_jack = adc51.readLastValue();
-      adc51.startReadAnalog(PB02,ADC_Channel14,false);      // Poti #2  Signal: Manual_Digital_Noise_Pitch
+      lfo_speed_poti = adc51.readLastValue();
+
+      pitch_lfo = 8192 - (lfo_speed_poti + lfo_speed_cv);
+      inc_sample = 1.0 / (float) pitch_lfo * 1.0 / (float) pitch_lfo * 250.0;
+      if(inc_sample>0.1) inc_sample= 0.1;
+      // inc_sample=0.01;
+      adc51.startReadAnalog(PB02,ADC_Channel14,false);      // LFO Wave Endless Poti1
       break;
     case 2:  
-      noise_pitch_poti = adc51.readLastValue();
-      sample_offset = noise_pitch_poti*6;
-      adc51.startReadAnalog(PA07,ADC_Channel7,false); 
+      lfo_wave_endlesspoti1 = adc51.readLastValue();
+      sample_offset = (RANGE(0,lfo_wave_endlesspoti2 + lfo_wave_cv,4095)) * 6;
+      // adc51.startReadAnalog(PA07,ADC_Channel7,false); 
+      adc51.startReadAnalog(PB06,ADC_Channel8,true);      // SliderPoti Attack
       break;
     case 3:  
-      sample_pitch_poti = adc51.readLastValue();
-      myADSR.setAttackRate(lut[sample_pitch_poti] *  max_attack_time );
-      pitch_lfo = 4096 - sample_pitch_poti;
-      inc_sample = 1.0 / (float) pitch_lfo * 1.0 / (float) pitch_lfo * 250.0;
-      adc51.startReadAnalog(PA06,ADC_Channel8,true);  
+      adsr_slider_attack = adc51.readLastValue();
+      myADSR.setAttackRate((lut[adsr_slider_attack] * lut[adsr_cv_attack] ) *  max_attack_time );
+      // adc51.startReadAnalog(PA06,ADC_Channel6,true);  // LFO Speed CV
       break;
     case 4:  
-      sample_pitch_jack = adc51.readLastValue();
-      adc51.startReadAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
+      // sample_pitch_jack = adc51.readLastValue();
+      // adc51.startReadAnalog(PB03,ADC_Channel15,false);  // Manual_6XSqr_Pitch Poti
+      adc51.startReadAnalog(PB08,ADC_Channel2,false);  // Sustain Slider
       break;
     case 5:  
-      sqr_pitch_poti = adc51.readLastValue();
-      myADSR.setSustainLevel((double)sqr_pitch_poti * scale_4 );
-      adc51.startReadAnalog(PB04,ADC_Channel6,true);    // CV_6XSqr_Pitch Poti
+      adsr_slider_sustain = adc51.readLastValue();
+      myADSR.setSustainLevel((double)adsr_slider_sustain * scale_4  * (double)adsr_cv_sustain * scale_4 );
+      adc51.startReadAnalog(PA06,ADC_Channel6,false);  
       break;
     case 6:  
-      sqr_pitch_jack = adc51.readLastValue();
-      adc51.startReadAnalog(PB05,ADC_Channel7,true);
+      lfo_speed_cv = adc51.readLastValue();
+      adc51.startReadAnalog(PB09,ADC_Channel3,false); // Release Slider
       break;
     case 7:  
-      spread_adc = adc51.readLastValue();
-      myADSR.setReleaseRate( lut[spread_adc] *  max_release_time);
-      adc51.startReadAnalog(PB09,ADC_Channel3,false);
+      adsr_slider_release = adc51.readLastValue();
+      myADSR.setReleaseRate( lut[adsr_slider_release] * lut[adsr_cv_release] *  max_release_time);
+      // adc51.startReadAnalog(PB09,ADC_Channel3,false);
       break;
     case 8:  
-      cv_sample_select_adc = adc51.readLastValue();
-      adc51.startReadAnalog(PA06,ADC_Channel6,false);
+      // cv_sample_select_adc = adc51.readLastValue();
+      // PORT->Group[PORTB].OUTSET.reg = 1ul << 12;          // Setup Mux to read PotiExpAdsr
+      adc51.startReadAnalog(PB00,ADC_Channel12,false);   // PortMuliplexer  PB12: LOW:  TriggerMode   HIGH: ADSR_Ratio
       break;
     case 9:  
-      prg8_smpl_select_adc = adc51.readLastValue();
-      myADSR.setTargetRatioAll( lut[prg8_smpl_select_adc] );
-      adc51.startReadAnalog(PB07,ADC_Channel9,true);
+      adsr_all_ratio = adc51.readLastValue();
+      //adsr_all_ratio = 1000;
+      myADSR.setTargetRatioAll( lut[adsr_all_ratio] );
+      adc51.startReadAnalog(PB07,ADC_Channel9,true);    // Decay Slider
       break;
     case 10:
-      ratchet_adc = adc51.readLastValue();
-      myADSR.setDecayRate(lut[ratchet_adc] * max_release_time );
+      adsr_slider_decay = adc51.readLastValue();
+      myADSR.setDecayRate((lut[adsr_slider_decay] * lut[adsr_cv_decay] ) * max_release_time );
+      adc51.startReadAnalog(PA08,ADC_Channel8,false); // CV IN AdsrAttack
       break;
     case 11:
+      adsr_cv_attack = adc51.readLastValue();
+      adc51.startReadAnalog(PA09,ADC_Channel9,false); // adsr decay cv
       break;
     case 12:
+      adsr_cv_decay = adc51.readLastValue();
+      adc51.startReadAnalog(PA10,ADC_Channel10,false); // adsr sustain cv
       break;
     case 13:
+      adsr_cv_sustain = adc51.readLastValue();
+      adc51.startReadAnalog(PB01,ADC_Channel13,false); // lfo endletPoti 2
       break;
     case 14:
+      lfo_wave_endlesspoti2 = adc51.readLastValue();
+      adc51.startReadAnalog(PB04,ADC_Channel6,true); // lfo endletPoti 2
       break;
     case 15:
+      lfo_wave_cv = adc51.readLastValue();
+      adc51.startReadAnalog(PA11,ADC_Channel11,false); // adsr relase cv
       break;
     }
 
    #ifdef DEBUG_TIMING_BY_SQR_OUT
-   PORT->Group[PORTA].OUTCLR.reg = 1ul << 22; 
+   PORT->Group[PORTA].OUTCLR.reg = 1ul << 17; 
    #endif
 }
 
@@ -384,19 +428,39 @@ void setup() {
   //put your setup code here, to run once:
   // First try remove DC from Ouputs  
 
-  fixBOD33();
+  // fixBOD33();
 
-  pinMode(PA23,OUTPUT); // LED
-  pinMode(PB00,OUTPUT); // LED
-  pinMode(PB31,OUTPUT); // LED
+  pinMode(PA23,OUTPUT); // LED Bootloader
+  pinMode(PB30,OUTPUT); // LED Trigger IN LFO
+  pinMode(PB31,OUTPUT); // LED ADSR GateIn
+
+  pinMode(PA17,OUTPUT); // end OF AttackPhase
+  pinMode(PA16,OUTPUT); // end OF Decay
+
 
   pinMode(PA13,INPUT); digitalWrite(PA13,false);
   pinMode(PA14,INPUT); digitalWrite(PA14,false);
   pinMode(PA15,INPUT); digitalWrite(PA15,false);
-  pinMode(PA16,INPUT); digitalWrite(PA16,false);
-  pinMode(PA17,INPUT); digitalWrite(PA17,false);
+  // pinMode(PA16,INPUT); digitalWrite(PA16,false);
+  // pinMode(PA17,INPUT); digitalWrite(PA17,false);
   pinMode(PA18,INPUT); digitalWrite(PA18,false);
 
+
+  pinMode(PB12,OUTPUT);  // Multiplexer
+  digitalWrite(PB12,true);
+
+  pinMode(PA00,INPUT);  // Button (Encoder)
+  pinMode(PA18,INPUT);  // Jack 
+
+  // PA20 adsr Ratched Switch
+  // PA21 adsr Loop Switch
+  // PB17 adsr A/B Switch
+
+
+  // PB05 adsr Poti Multiplayer
+
+
+/*
   pinMode(PA19,OUTPUT); // SQR1
   pinMode(PA12,OUTPUT); // SQR2
   pinMode(PB15,OUTPUT); // SQR1
@@ -405,7 +469,7 @@ void setup() {
   pinMode(PB12,OUTPUT); // SQR1
 
   pinMode(PA22,OUTPUT); // PWM OUT
-
+*/
   pinMode(PB01,INPUT_PULLUP); // SQR1
   pinMode(PA21,INPUT_PULLUP); // SQR1
   pinMode(PB17,INPUT_PULLUP); // 8Bit or sample Button
