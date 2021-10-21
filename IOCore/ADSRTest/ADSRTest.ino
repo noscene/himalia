@@ -31,6 +31,32 @@
 
 
 
+// Array mit Attack Times, der letzte pro Zeile muss immer Null Sein!!! also max 15 Schläge
+float array_claps [16][16] = {
+  {0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.2, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.2, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.0, },
+  {0.2, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.0, },
+  {0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.2, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, },
+  {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, }
+};
+
+
+uint16_t wave_tables_lfo[4096 * 8];
+
+
+
+
 // need to Test .... TODO: call this from setup function and uncomment return in Line 101
 void fixBOD33(){
   // A magic number in the unused area of the user page indicates that
@@ -160,8 +186,8 @@ ZM_ADSR myADSR;
 const double    scale_4           = 1.0/4096.0;   // Das Brauchen wir zum scale von ADC Integers -> 0.00 ... 1.00
 const uint32_t  tc_usec_timer     = 80;     // 38 == 26.kKhz | 40 == 25KH | 80 == 12.5Khz Achtung darunter Probleme Attack/Sustain Reading from ADC´s !!!!
 const double    samplerate        = 1.0 / (double)tc_usec_timer * 1000000.0;  // Steuert die HK Zeit auf 1Sek bei SampleRate * 10 => 10Sekunden
-const double    max_attack_time   = samplerate  * 1;  // Time Range for ADSR
-const double    max_release_time  = samplerate * 10;  // Time Range for ADSR
+const double    max_attack_time   = samplerate  * 10;  // Time Range for ADSR
+const double    max_release_time  = samplerate * 20;  // Time Range for ADSR
 double lut[4096]; // lookupTable adc -> double Value 1/4096 ^ 3
 
 // Use this to figure out best tc_usec_timer value!!!!
@@ -279,9 +305,10 @@ void renderAudio() {
     }         
 
 
-    float sample_raw_len =  4095.0;
+    const float sample_raw_len =  4095.0;
 
-    DACValue0 = lfo_wave[sample_offset + (uint32_t)(sample_raw_len * thea_sample)];  // extend to 32 Bit
+    uint32_t sample_idx = sample_offset + (uint32_t)(sample_raw_len * thea_sample);
+    DACValue0 = wave_tables_lfo[sample_idx & 0x7fff];  // extend to 32 Bit
   }
 
 
@@ -328,10 +355,10 @@ void loop2() {
   adc_state_machine++;
   adc_state_machine&=0x000f;
 
-  // Freese ADC READING!!!!
-  bool is_8bitchipmode = PORT->Group[PORTB].IN.reg & (1ul << 17);  
-  if(!is_8bitchipmode){
-      adc_state_machine=14;
+  // Freese ADC READING!!!! for Debug jitter only!
+  bool is_AB_switch = PORT->Group[PORTB].IN.reg & (1ul << 17);  // A/B Knopf
+  if(!is_AB_switch){ // in B modus ???
+      adc_state_machine=20;
   }
 
   float pitch_lfo;
@@ -345,21 +372,23 @@ void loop2() {
     case 1: 
       lfo_speed_poti = adc51.readLastValue();
 
-      pitch_lfo = 8192 - (lfo_speed_poti + lfo_speed_cv);
-      inc_sample = 1.0 / (float) pitch_lfo * 1.0 / (float) pitch_lfo * 250.0;
-      if(inc_sample>0.1) inc_sample= 0.1;
+      pitch_lfo = 6000 - (lfo_speed_poti + lfo_speed_cv);
+      pitch_lfo = RANGE(0,pitch_lfo,4096);
+      inc_sample = 1.0 / (float) pitch_lfo * 50.0;
+      inc_sample = inc_sample * inc_sample  * inc_sample ;
+      if(inc_sample>0.02) inc_sample= 0.02;
       // inc_sample=0.01;
       adc51.startReadAnalog(PB02,ADC_Channel14,false);      // LFO Wave Endless Poti1
       break;
     case 2:  
       lfo_wave_endlesspoti1 = adc51.readLastValue();
-      sample_offset = (RANGE(0,lfo_wave_endlesspoti2 + lfo_wave_cv,4095)) * 6;
+      sample_offset = (RANGE(0,lfo_wave_endlesspoti2 + lfo_wave_cv - 2000,4096)) * 7;
       // adc51.startReadAnalog(PA07,ADC_Channel7,false); 
       adc51.startReadAnalog(PB06,ADC_Channel8,true);      // SliderPoti Attack
       break;
     case 3:  
       adsr_slider_attack = adc51.readLastValue();
-      myADSR.setAttackRate((lut[adsr_slider_attack] * lut[adsr_cv_attack] ) *  max_attack_time );
+      myADSR.setAttackRate((lut[adsr_slider_attack] + lut[adsr_cv_attack] ) *  max_attack_time );
       // adc51.startReadAnalog(PA06,ADC_Channel6,true);  // LFO Speed CV
       break;
     case 4:  
@@ -369,7 +398,7 @@ void loop2() {
       break;
     case 5:  
       adsr_slider_sustain = adc51.readLastValue();
-      myADSR.setSustainLevel((double)adsr_slider_sustain * scale_4  * (double)adsr_cv_sustain * scale_4 );
+      myADSR.setSustainLevel((double)adsr_slider_sustain * scale_4  + (double)adsr_cv_sustain * scale_4 );
       adc51.startReadAnalog(PA06,ADC_Channel6,false);  
       break;
     case 6:  
@@ -378,7 +407,7 @@ void loop2() {
       break;
     case 7:  
       adsr_slider_release = adc51.readLastValue();
-      myADSR.setReleaseRate( lut[adsr_slider_release] * lut[adsr_cv_release] *  max_release_time);
+      myADSR.setReleaseRate( (lut[adsr_slider_release] + lut[adsr_cv_release]) *  max_release_time);
       // adc51.startReadAnalog(PB09,ADC_Channel3,false);
       break;
     case 8:  
@@ -394,7 +423,7 @@ void loop2() {
       break;
     case 10:
       adsr_slider_decay = adc51.readLastValue();
-      myADSR.setDecayRate((lut[adsr_slider_decay] * lut[adsr_cv_decay] ) * max_release_time );
+      myADSR.setDecayRate((lut[adsr_slider_decay] + lut[adsr_cv_decay] ) * max_release_time );
       adc51.startReadAnalog(PA08,ADC_Channel8,false); // CV IN AdsrAttack
       break;
     case 11:
@@ -490,6 +519,20 @@ void setup() {
   // Timing SampleRate
   adc51.createADCMap(50000*2); // 50Khz but pitch down by * 2
   
+  // Create LFO WaveTable
+  uint16_t iw = 0;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=4095;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=0;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
+
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
+
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=0;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=4095;
+
+
   /*
   while(1){
     while(SysTick->VAL & 0xff); // Keine gute Idee da wir ja nicht jeden systick finden, evtl unten noch Bitmask setzen ?!?!?!
