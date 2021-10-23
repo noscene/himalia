@@ -32,7 +32,9 @@ double tap reset on module to go into bootloader mode. Then it works like a simp
 and you only need the xxx.uf2 file into root for update firmware. Call the build.sh script
 to compile all and copy firmware into module.
 ```
-. /PRJ/build.sh 
+. /PRJ/build_himalia.sh
+. /PRJ/build_kalyke.sh
+
 ```
 
 ### how to convert sample files into header

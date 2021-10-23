@@ -213,3 +213,6 @@ void dacWrite(uint16_t  left ,uint16_t  right){
     DAC->DATA[1].reg = right >> 4;
     while (DAC->SYNCBUSY.bit.DATA1);
 }
+
+
+

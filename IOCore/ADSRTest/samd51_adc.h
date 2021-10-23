@@ -159,4 +159,112 @@ class SAMD51_ADC {
 };
 
 
+// need to Test .... TODO: call this from setup function and uncomment return in Line 101
+void fixBOD33(){
+  // A magic number in the unused area of the user page indicates that
+  // the device is already updated with the current configuration.
+  static const uint32_t magic = 0xa5f12945;
+  const uint32_t *page        = (uint32_t *)NVMCTRL_USER;
+  if (page[8] == magic)
+    return;
+
+  union {
+    uint32_t data[128];
+    uint8_t bytes[512];
+  };
+
+  // void V2Memory::Flash::UserPage::read(uint32_t data[128]) {
+  memcpy(data, (const void *)NVMCTRL_USER, 512);
+
+  Serial.println("current FUSES");
+  Serial.println( data[0],HEX);
+  Serial.println( data[1],HEX);
+  Serial.println( data[2],HEX);
+  Serial.println( data[3],HEX);
+  Serial.println( data[4],HEX);
+  Serial.println( data[5],HEX);
+  Serial.println( data[6],HEX);
+  Serial.println( data[7],HEX);
+  Serial.println( data[8],HEX);
+
+
+
+  // Ignore all current values; fix the fallout caused by the broken uf2
+  // bootloader, which has erased the devices's factory calibration. Try to
+  // restore it with known values
+  //
+  // User Page Dump (Intel Hex) of pristine SAMD51G19A:
+  // :0200000400807A
+  // :1040000039929AFE80FFECAEFFFFFFFFFFFFFFFF3C
+  // :1040100010408000FFFFFFFFFFFFFFFFFFFFFFFFDC
+  if (data[4] == 0xffffffff) {
+    memset(bytes, 0xff, 512);
+    data[0] = 0xfe9a9239; // 0xF69A9239
+    data[1] = 0xaeecff80;
+    data[4] = 0x00804010;
+  }
+
+
+  // Protect the bootloader area.
+  data[0] = (data[0] & ~NVMCTRL_FUSES_BOOTPROT_Msk) | NVMCTRL_FUSES_BOOTPROT(13);
+
+  // Enable the Brown-Out Detector
+  data[0] &= ~FUSES_BOD33_DIS_Msk;
+
+  // Set EEPROM size (4 Kb)
+  data[1] = (data[1] & ~NVMCTRL_FUSES_SEESBLK_Msk) | NVMCTRL_FUSES_SEESBLK(1);
+  data[1] = (data[1] & ~NVMCTRL_FUSES_SEEPSZ_Msk) | NVMCTRL_FUSES_SEEPSZ(3);
+
+  // Add our magic, it will skip this configuration at startup.
+  data[8] = magic;
+
+  Serial.println("New FUSES");
+  Serial.println( data[0],HEX); Serial.println( data[1],HEX); Serial.println( data[2],HEX); Serial.println( data[3],HEX);
+  Serial.println( data[4],HEX); Serial.println( data[5],HEX); Serial.println( data[6],HEX); Serial.println( data[7],HEX);
+  Serial.println( data[8],HEX);
+  
+  
+  // uncomment to Write Fuses
+  // return;
+
+
+  // V2Memory::Flash::UserPage::write(data);
+  while (NVMCTRL->STATUS.bit.READY == 0)
+    ;
+
+  // Manual write
+  NVMCTRL->CTRLA.bit.WMODE = NVMCTRL_CTRLA_WMODE_MAN;
+
+  // Erase page
+  NVMCTRL->ADDR.reg  = (uint32_t)NVMCTRL_USER;
+  NVMCTRL->CTRLB.reg = NVMCTRL_CTRLB_CMDEX_KEY | NVMCTRL_CTRLB_CMD_EP;
+  while (NVMCTRL->STATUS.bit.READY == 0)
+    ;
+
+  // Page buffer clear
+  NVMCTRL->ADDR.reg  = (uint32_t)NVMCTRL_USER;
+  NVMCTRL->CTRLB.reg = NVMCTRL_CTRLB_CMDEX_KEY | NVMCTRL_CTRLB_CMD_PBC;
+  while (NVMCTRL->STATUS.bit.READY == 0)
+    ;
+
+  // Write page
+  uint32_t *addr = (uint32_t *)NVMCTRL_USER;
+  for (uint8_t i = 0; i < 128; i += 4) {
+    addr[i + 0] = data[i + 0];
+    addr[i + 1] = data[i + 1];
+    addr[i + 2] = data[i + 2];
+    addr[i + 3] = data[i + 3];
+
+    // Write quad word (128 bits)
+    NVMCTRL->ADDR.reg  = (uint32_t)(addr + i);
+    NVMCTRL->CTRLB.reg = NVMCTRL_CTRLB_CMDEX_KEY | NVMCTRL_CTRLB_CMD_WQW;
+    while (NVMCTRL->STATUS.bit.READY == 0)
+      ;
+  }
+  // Reboot to enable the new settings.
+  delay(100);
+  NVIC_SystemReset();
+
+}
+
 #endif
