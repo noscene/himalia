@@ -81,7 +81,7 @@ extern "C"
 // #define digitalPinToTimer(P)
 
 #define PA15 4
-
+#define PA20 7
 #define PA12 1
     
 #define PA19 38

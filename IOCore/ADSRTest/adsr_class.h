@@ -87,6 +87,7 @@ class ZM_ADSR {
     };
 
     void setSustainLevel( double level) {
+        if(level > 1.0) level = 1.0;
         sustainLevel = level;
         decayBase = (sustainLevel - targetRatioDR) * (1.0 - decayCoef);
     };
