@@ -1,6 +1,6 @@
-# Himalia - IO Instruments
+# Himalia, Kalyke - IO Instruments
 
-Himalia is a eurorack module with an samd51 cortex m4 mcu. The firmeware can build complete
+Himalia and Kalyke is a eurorack module with an samd51 cortex m4 mcu. The firmeware can build complete
 in a docker enviroment, so it has no library conflicts on build machine.
 The firmware is written in arduino style so it is easy to use and modify.
 
@@ -37,7 +37,7 @@ to compile all and copy firmware into module.
 
 ```
 
-### how to convert sample files into header
+### how to convert sample files into header for himalia
 samples will linked into src code by convert it in the right format and make a c-header file
 from binary to use it in compiler.
 ```

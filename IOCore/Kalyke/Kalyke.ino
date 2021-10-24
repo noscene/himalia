@@ -10,7 +10,6 @@
 #define RANGE(min,v,max)	  MIN(MAX(v,min),max) 
 #define MAP_RANGE(v,a,b,mi,ma) RANGE(mi,map(v,a,b,mi,ma),ma)
 
-
 // A Jack+Poti
 // D Jack+Poti
 // S Jack+Poti
@@ -119,9 +118,11 @@ bool            adsr_ratched_mode;
 float thea_sample       = 0.0f;
 float inc_sample        = 0.12f;
 uint16_t sample_offset  = 0;
-uint16_t test_ratched   = 0;
+// uint16_t test_ratched   = 0;
+uint16_t lfo_ratchet_count = 0;
 
 
+float mod_adsr2lfo = 0;
 //
 //  OUTPUT AUDIO sample Data
 //
@@ -135,13 +136,7 @@ uint16_t DACValue1 = 0;
 void outputSample() {
   DAC->DATA[0].reg = DACValue0;
   DAC->DATA[1].reg = DACValue1;
-  /*
-  if(noise_led)  PORT->Group[PORTB].OUTCLR.reg = 1ul << 0;  else   PORT->Group[PORTB].OUTSET.reg = 1ul << 0;    // LED
 
-  #ifndef DEBUG_TIMING_BY_SQR_OUT  
-    if(noise_led)  PORT->Group[PORTA].OUTSET.reg = 1ul << 22; else PORT->Group[PORTA].OUTCLR.reg = 1ul << 22;
-  #endif
-  */
 }
 
 
@@ -230,16 +225,14 @@ void renderAudio() {
   // LFO
 
   // Forward Button + Trigger to LED
-  static uint32_t leftSamples = 1000000;
+  static uint32_t leftSamples = 1;
   static bool     previous_trigger = false;
-  if (  (PORT->Group[PORTB].IN.reg & (1ul << 16))  &&      // Trigger from Button
-        (PORT->Group[PORTB].IN.reg & (1ul << 23))     ) {  // Trigger from jack
-    // PORT->Group[PORTB].OUTCLR.reg = 1ul << 31;             // trigger fire!
+  if (  !(PORT->Group[PORTA].IN.reg & (1ul << 19))  &&      // PA19 Trig_In_LFO (JACK) 
+        (PORT->Group[PORTA].IN.reg & (1ul << 00))     ) {  // PA00 Manual_Trig_SW (Trigger Endlesspoti)
     previous_trigger=false;
   } else {
-    // PORT->Group[PORTB].OUTSET.reg = 1ul << 31;
     if(!previous_trigger){          // check for edge
-      leftSamples = 1000000; // ratchet_counts;
+      leftSamples = lfo_ratchet_count; // ratchet_counts;
       thea_sample=0.0f; // retrigger 
     }
     previous_trigger=true;
@@ -247,6 +240,7 @@ void renderAudio() {
 
   static uint16_t sample_and_hold_value = 2048;
  
+  if(lfo_ratchet_count>14)  leftSamples = 10; // LFO Unendlich laufen lassen
 
   if(leftSamples>0){
     thea_sample+=inc_sample;
@@ -271,10 +265,18 @@ void renderAudio() {
 
 
   if(!(PORT->Group[PORTB].IN.reg & (1ul << 16))) { // PB16 S/H früher S/F
-    leftSamples = 10000; // LFO dauerhaft laufen lassen und neue S/H Values generieren
+    leftSamples = 15; // LFO dauerhaft laufen lassen und neue S/H Values generieren
     DACValue0=sample_and_hold_value ; // + */ test_ratched;
   }
 
+
+  //now mod LFO
+  
+  float vca_adsr = mod_adsr2lfo / 4096.0;
+  float vca_lfo = 1.0 - vca_adsr;
+  float adsr_anteil = (float) DACValue1 / 4096.0 * vca_adsr;
+  DACValue0 = (float)DACValue0 * vca_lfo + (float)DACValue0 * adsr_anteil;
+  //DACValue0 = mod_adsr2lfo;
 }
 
 void loop() { // never reached
@@ -286,7 +288,7 @@ void loop() { // never reached
 void loop2() {
 
   #ifdef DEBUG_TIMING_BY_SQR_OUT
-  PORT->Group[PORTA].OUTSET.reg = 1ul << 17;  // end of attack
+  PORT->Group[PORTA].OUTSET.reg = 1ul << 17;  // // EA_Trig EndOfAttack
   #endif
 
 
@@ -360,7 +362,7 @@ void loop2() {
       break;
     case 4:  
       lfo_ratchet_poti = adc51.readLastValue();
-      // test_ratched = lfo_ratchet_poti;
+      lfo_ratchet_count = MAP_RANGE(lfo_ratchet_poti,350,3650, 1, 15);
       adc51.startReadAnalog(PB08,ADC_Channel2,false);  // Sustain Slider
       break;
     case 5:  
@@ -379,8 +381,9 @@ void loop2() {
       //adc51.startReadAnalog(PB03,ADC_Channel15,false);  // Kalyke Fade IN:  TODO: reagiert nicht
       break;
     case 8:  
-      lfo_decay_drywet = adc51.readLastValue();
-      test_ratched = lfo_decay_drywet;
+      lfo_decay_drywet = adc51.readLastValue();   // Hier steht der Value vom mini poti rechts an den jacks der später entfällt
+      mod_adsr2lfo = MAP_RANGE(lfo_decay_drywet,250,3650, 0, 4095);
+      // test_ratched = lfo_decay_drywet;
       PORT->Group[PORTB].OUTSET.reg = 1ul << 12;          // Setup Mux to read PotiExpAdsr
       adc51.startReadAnalog(PB00,ADC_Channel12,false);   // PortMuliplexer  PB12: LOW:  TriggerMode   HIGH: ADSR_Ratio
       break;
@@ -419,7 +422,7 @@ void loop2() {
     }
 
    #ifdef DEBUG_TIMING_BY_SQR_OUT
-   PORT->Group[PORTA].OUTCLR.reg = 1ul << 17; 
+   PORT->Group[PORTA].OUTCLR.reg = 1ul << 17;   // EA_Trig EndOfAttack
    #endif
 }
 
@@ -433,25 +436,40 @@ void setup() {
   pinMode(PB30,OUTPUT); // LED Trigger IN LFO
   pinMode(PB31,OUTPUT); // LED ADSR GateIn
 
-  pinMode(PA17,OUTPUT); // end OF AttackPhase
-  pinMode(PA16,OUTPUT); // end OF Decay
+  pinMode(PA17,OUTPUT); // EA_Trig end OF AttackPhase
+  pinMode(PA16,OUTPUT); // ED_Trig end OF Decay
 
 
   pinMode(PA13,INPUT); digitalWrite(PA13,false);
   pinMode(PA14,INPUT); digitalWrite(PA14,false);
   pinMode(PA15,INPUT); digitalWrite(PA15,false);
-  // pinMode(PA16,INPUT); digitalWrite(PA16,false);
-  // pinMode(PA17,INPUT); digitalWrite(PA17,false);
-  pinMode(PA18,INPUT); digitalWrite(PA18,false);
 
 
-  pinMode(PB12,OUTPUT);  // Multiplexer
+  pinMode(PB12,OUTPUT);       // Multiplexer ADC ADSR_Curv/Trig_Mode
   digitalWrite(PB12,true);
 
-  pinMode(PA00,INPUT);  // Button (Encoder)
-  pinMode(PA18,INPUT);  // Jack 
-  pinMode(PB16,INPUT_PULLUP); // S/F Modue Button nun S/H
-  pinMode(PA20,INPUT_PULLUP); // S/F Modue Button nun S/H
+  pinMode(PA00,INPUT);        // Manual_Trig_SW Button (Encoder)
+  pinMode(PA18,INPUT);        // Gate_In_ADSR  Jack
+  pinMode(PB16,INPUT_PULLUP); // Slow_Fast_Tempo_SW S/F Modue Button nun S/H
+  pinMode(PA20,INPUT_PULLUP); // Ratched_SW 
+
+
+  // configure Cap Filters
+  pinMode(PB14,OUTPUT); // LFO_FILTER_CAP1
+  pinMode(PB15,OUTPUT); // LFO_FILTER_CAP2
+  pinMode(PA12,OUTPUT); // LFO_FILTER_CAP3
+  digitalWrite(PB14,false);
+  digitalWrite(PB15,false);
+  digitalWrite(PA12,false);
+
+
+  pinMode(PA13,OUTPUT); // ADSR_FILTER_CAP1
+  pinMode(PA14,OUTPUT); // ADSR_FILTER_CAP2
+  pinMode(PA15,OUTPUT); // ADSR_FILTER_CAP3
+  digitalWrite(PA13,false);
+  digitalWrite(PA14,false);
+  digitalWrite(PA15,false);
+
 
   // PA20 adsr Ratched Switch
   // PA21 adsr Loop Switch
@@ -461,28 +479,16 @@ void setup() {
 
 
   // PB05 adsr Poti Multiplayer
-
-
-/*
-  pinMode(PB14,OUTPUT); // SQR1
-  pinMode(PB15,OUTPUT); // SQR1
-  pinMode(PA12,OUTPUT); // SQR2
-
-  pinMode(PA13,OUTPUT); // SQR1
-  pinMode(PB14,OUTPUT); // SQR1
-  pinMode(PB15,OUTPUT); // SQR1
-
-  pinMode(PA22,OUTPUT); // PWM OUT
-*/
-  pinMode(PB01,INPUT_PULLUP); // SQR1
-  pinMode(PA21,INPUT_PULLUP); // SQR1
-  pinMode(PB17,INPUT_PULLUP); // AB Switch Neu: Freeze
-
-  pinMode(PB23,INPUT_PULLUP); // Manual Trigger
+  pinMode(PA19,INPUT);          // PA19 Trig_In_LFO from JACK
+  pinMode(PB01,INPUT);          // Wave_Select_Manual_2 (endlespoti)
+  pinMode(PB02,INPUT);          // Wave_Select_Manual_1 (endlespoti not used)
+  pinMode(PA21,INPUT_PULLUP);   // Loop_SW ADSR
+  pinMode(PB17,INPUT_PULLUP);   // AB Switch Neu: Freeze
+  pinMode(PB23,INPUT_PULLUP);   // Manual Trigger
 
   dacInit();
-  DAC->DATA[0].reg = 2048;   // ca 1.5V
-  DAC->DATA[1].reg = 2048;
+  DAC->DATA[0].reg = 2048;        // ca 1.5V PA05
+  DAC->DATA[1].reg = 2048;        // ca 1.5V PA02
   while (DAC->SYNCBUSY.bit.DATA0);
 
   for(int i = 0 ; i < 4096; i++) {
