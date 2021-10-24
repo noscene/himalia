@@ -275,7 +275,7 @@ void renderAudio() {
   float vca_adsr = mod_adsr2lfo / 4096.0;
   float vca_lfo = 1.0 - vca_adsr;
   float adsr_anteil = (float) DACValue1 / 4096.0 * vca_adsr;
-  DACValue0 = (float)DACValue0 * vca_lfo + (float)DACValue0 * adsr_anteil;
+  DACValue0 = 4095 - ( (float)DACValue0 * vca_lfo + (float)DACValue0 * adsr_anteil );
   //DACValue0 = mod_adsr2lfo;
 }
 
