@@ -365,8 +365,8 @@ void loop2() {
     case 7:  
       adsr_slider_release = adc51.readLastValue();
       myADSR.setReleaseRate( (lut[adsr_slider_release] + lut[adsr_cv_release]) *  max_release_time);
-      adc51.startReadAnalog(PB05,ADC_Channel7,true);      // Kalyke MiniPoti entfällt, erstmal provisorisch nutzen
-      //adc51.startReadAnalog(PB03,ADC_Channel15,false);  // Kalyke Fade IN:  TODO: reagiert nicht
+      // adc51.startReadAnalog(PB05,ADC_Channel7,true);      // Kalyke MiniPoti entfällt, erstmal provisorisch nutzen
+      adc51.startReadAnalog(PB03,ADC_Channel15,false);  // Kalyke Fade IN:  TODO: reagiert nicht
       break;
     case 8:  
       lfo_decay_drywet = adc51.readLastValue();   // Hier steht der Value vom mini poti rechts an den jacks der später entfällt
