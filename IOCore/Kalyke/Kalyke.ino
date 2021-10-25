@@ -57,9 +57,9 @@ float array_claps [16][16] = {
 };
 float array_claps_attacks [16] = {
   0.0001,  0.001,  0.001,  0.001,
-  0.0001,  0.0001,  0.01,  0.01,
-  0.0001,  0.0001,  0.001,  0.0001,
-  0.0001,  0.0001,  0.1,   0.0001,
+  0.0001,  0.0002, 0.004,  0.007,
+  0.008,   0.009,  0.01,   0.013,
+  0.017,   0.02,   0.05,   0.1,
 };
 
 uint16_t wave_tables_lfo[4096 * 8];
@@ -69,20 +69,6 @@ uint16_t wave_tables_lfo[4096 * 8];
 
 SAMD51_ADC adc51;
 ZM_ADSR myADSR;
-//
-//  NoiseGenerator
-//
-class LFSR {
-  private:
-  uint16_t reg;
-  public:
-  LFSR(uint16_t seed) : reg(seed) {}
-  uint16_t next() {
-    uint8_t b = ((reg >> 0) ^ (reg >> 1) ^ (reg >> 3) ^ (reg >> 12)) & 1;
-    reg = (reg >> 1) | (b << 15);
-    return reg;
-  }
-};
 LFSR lsfr1(0xA1e);
 // 
 // Timing Parameter
@@ -247,7 +233,7 @@ void renderAudio() {
     if(thea_sample>1.0f){
       thea_sample-=1.0f;
       leftSamples--;
-      sample_and_hold_value = lsfr1.next();
+      sample_and_hold_value = lsfr1.next()/16;
     }
 
     if(thea_sample<0.2f){
@@ -261,12 +247,14 @@ void renderAudio() {
 
     uint32_t sample_idx = sample_offset + (uint32_t)(sample_raw_len * thea_sample);
     DACValue0 = wave_tables_lfo[sample_idx & 0x7fff];  // extend to 32 Bit
+  }else{
+    DACValue0=0;
   }
 
 
   if(!(PORT->Group[PORTB].IN.reg & (1ul << 16))) { // PB16 S/H früher S/F
-    leftSamples = 15; // LFO dauerhaft laufen lassen und neue S/H Values generieren
-    DACValue0=sample_and_hold_value ; // + */ test_ratched;
+    // leftSamples = 1; // LFO dauerhaft laufen lassen und neue S/H Values generieren
+    DACValue0=sample_and_hold_value;   // Keinesample_and_hold_value << 4 ; // + */ test_ratched;
   }
 
 
@@ -352,7 +340,7 @@ void loop2() {
       break;
     case 3:  
       adsr_slider_attack = adc51.readLastValue();
-      adsr_ratched_prg = MAP_RANGE(adsr_slider_attack,250,3650, 0, 15);
+      adsr_ratched_prg = MAP_RANGE(adsr_slider_attack,180,3800, 0, 15);
       if (adsr_ratched_mode)
         myADSR.setAttackRate( array_claps_attacks[adsr_ratched_prg] *  max_attack_time );
       else
@@ -455,17 +443,17 @@ void setup() {
 
 
   // configure Cap Filters
-  pinMode(PB14,OUTPUT); // LFO_FILTER_CAP1
-  pinMode(PB15,OUTPUT); // LFO_FILTER_CAP2
-  pinMode(PA12,OUTPUT); // LFO_FILTER_CAP3
+  pinMode(PB14,INPUT); // LFO_FILTER_CAP1
+  pinMode(PB15,INPUT); // LFO_FILTER_CAP2
+  pinMode(PA12,INPUT); // LFO_FILTER_CAP3
   digitalWrite(PB14,false);
   digitalWrite(PB15,false);
   digitalWrite(PA12,false);
 
 
-  pinMode(PA13,OUTPUT); // ADSR_FILTER_CAP1
-  pinMode(PA14,OUTPUT); // ADSR_FILTER_CAP2
-  pinMode(PA15,OUTPUT); // ADSR_FILTER_CAP3
+  pinMode(PA13,INPUT); // ADSR_FILTER_CAP1
+  pinMode(PA14,INPUT); // ADSR_FILTER_CAP2
+  pinMode(PA15,INPUT); // ADSR_FILTER_CAP3
   digitalWrite(PA13,false);
   digitalWrite(PA14,false);
   digitalWrite(PA15,false);

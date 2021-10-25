@@ -189,6 +189,19 @@ class ZM_ADSR {
 
 };
 
-
+//
+//  NoiseGenerator
+//
+class LFSR {
+  private:
+  uint16_t reg;
+  public:
+  LFSR(uint16_t seed) : reg(seed) {}
+  uint16_t next() {
+    uint8_t b = ((reg >> 0) ^ (reg >> 1) ^ (reg >> 3) ^ (reg >> 12)) & 1;
+    reg = (reg >> 1) | (b << 15);
+    return reg;
+  }
+};
 
 #endif
