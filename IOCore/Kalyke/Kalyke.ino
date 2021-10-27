@@ -144,7 +144,7 @@ void renderAudio() {
 
   // if change gate...handle in adsr
   static bool zm_gate_before=false;
-  if(mygate != zm_gate_before){
+  if(mygate != zm_gate_before) {
       myADSR.setNewGateState(mygate); // Note On/Off
       if(mygate) { // Gate wurde ausgelöst per knopf oder Gate Input
         adsr_ratched_countdown=16;
@@ -218,8 +218,8 @@ void renderAudio() {
     previous_trigger=false;
   } else {
     if(!previous_trigger){          // check for edge
-      leftSamples = lfo_ratchet_count; // ratchet_counts;
-      thea_sample=0.0f; // retrigger 
+      leftSamples = lfo_ratchet_count + 1; // ratchet_counts; Da gleich die phase resettet wird brauchen wir minimum 2
+      thea_sample=0.99999f; // retrigger 
     }
     previous_trigger=true;
   }
@@ -250,7 +250,8 @@ void renderAudio() {
   }else{
     DACValue0=0;
   }
-
+  
+  lsfr1.next();
 
   if(!(PORT->Group[PORTB].IN.reg & (1ul << 16))) { // PB16 S/H früher S/F
     // leftSamples = 1; // LFO dauerhaft laufen lassen und neue S/H Values generieren
@@ -396,7 +397,8 @@ void loop2() {
       break;
     case 13:
       adsr_cv_sustain = adc51.readLastValue();
-      adc51.startReadAnalog(PB01,ADC_Channel13,false); // lfo endletPoti 2
+//      adc51.startReadAnalog(PB01,ADC_Channel13,false); // lfo endletPoti 2
+      adc51.startReadAnalog(PB05,ADC_Channel7,true);      // Kalyke MiniPoti entfällt, erstmal provisorisch nutzen
       break;
     case 14:
       lfo_wave_endlesspoti2 = adc51.readLastValue();
@@ -492,15 +494,24 @@ void setup() {
   uint16_t iw = 0;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=4095;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=0;
-  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
-  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
 
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
 
-  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=0;
-  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=4095;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
+ 
+  // Enable Random Generator
+  MCLK->APBCMASK.reg |= MCLK_APBCMASK_TRNG;
+  //Enable TRNG
+  TRNG->CTRLA.reg |= TRNG_CTRLA_ENABLE;
+  //Wait for the TRNG to contain a valid data
+  while((TRNG->INTFLAG.reg & TRNG_INTFLAG_DATARDY) == 0) {}
 
+  //Get the 32-bit random value
+  // value = TRNG->DATA.reg;
 
   /*
   while(1){
