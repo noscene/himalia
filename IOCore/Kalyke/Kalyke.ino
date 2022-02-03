@@ -64,7 +64,7 @@ const float array_claps_attacks [16] = {
 
 uint16_t wave_tables_lfo[4096 * 8];
 
-
+float lfo_inc_tab[4096];
 
 
 SAMD51_ADC adc51;
@@ -320,6 +320,8 @@ void loop2() {
   }
 
   float pitch_lfo;
+  float inc_sample_temp;
+  const float inc_sample_case = 1.0 / 20000.0;
 
   switch(adc_state_machine) {
     case 0: 
@@ -328,11 +330,15 @@ void loop2() {
       break;
     case 1: 
       lfo_speed_poti = adc51.readLastValue();
-      pitch_lfo = 6000 - (lfo_speed_poti + lfo_speed_cv);
-      pitch_lfo = RANGE(0,pitch_lfo,4096);
-      inc_sample = 1.0 / (float) pitch_lfo * 50.0;
-      inc_sample = inc_sample * inc_sample  * inc_sample ;
-      if(inc_sample>0.02) inc_sample= 0.02;                 // ca 250 Hz Limit LFO Speed
+      pitch_lfo = (lfo_speed_poti + lfo_speed_cv - 2048); // CV Input scheint auf Mitte Normalisiert
+      pitch_lfo = RANGE(0,pitch_lfo,4095) ;
+
+      // inc_sample =  4.0f * powf(2.0f,( pitch_lfo - 2048.0f ) * 0.004 ) / samplerate;
+      inc_sample =lfo_inc_tab[(uint16_t)pitch_lfo];
+      
+
+      if(inc_sample>0.2) inc_sample= 0.2;                 // ca 2500 Hz Limit LFO Speed
+      if(inc_sample<0)   inc_sample = 0.0000001;
       adc51.startReadAnalog(PB02,ADC_Channel14,false);      // LFO Wave Endless Poti1
       break;
     case 2:  
@@ -484,6 +490,9 @@ void setup() {
   for(int i = 0 ; i < 4096; i++) {
     double scale = (double) i *  1.0/4096.0;
     lut[i] = scale * scale * scale ;
+
+    // create inc lfo table at base 4Hz in Center
+    lfo_inc_tab[i] =  4.0f * powf(2.0f,( (float)i - 2048.0f ) * 0.004 ) / samplerate;
   }
 
 
@@ -492,19 +501,20 @@ void setup() {
   
   // Create LFO WaveTable
   uint16_t iw = 0;
+  // SQR
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=4095;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=0;
-
+  // COS
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
-//  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
-
+  // SAW
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
+  // TRI (halbe Phasen)
   for(int i = 0 ; i < 4096; i+=2)    wave_tables_lfo[0x7fff & iw++]=4096 - i;
-  for(int i = 0 ; i < 4096; i+=2)     wave_tables_lfo[0x7fff & iw++]=i;
+  for(int i = 0 ; i < 4096; i+=2)    wave_tables_lfo[0x7fff & iw++]=i;
   for(int i = 0 ; i < 4096; i+=2)    wave_tables_lfo[0x7fff & iw++]=4096 - i;
-  for(int i = 0 ; i < 4096; i+=2)     wave_tables_lfo[0x7fff & iw++]=i;
+  for(int i = 0 ; i < 4096; i+=2)    wave_tables_lfo[0x7fff & iw++]=i;
  
   // Enable Random Generator
   MCLK->APBCMASK.reg |= MCLK_APBCMASK_TRNG;
