@@ -330,7 +330,7 @@ void loop2() {
       break;
     case 1: 
       lfo_speed_poti = adc51.readLastValue();
-      pitch_lfo = (lfo_speed_poti + lfo_speed_cv - 2048); // CV Input scheint auf Mitte Normalisiert
+      pitch_lfo = (lfo_speed_poti + lfo_speed_cv / 2.0  - 1536); // CV Input scheint auf Mitte Normalisiert
       pitch_lfo = RANGE(0,pitch_lfo,4095) ;
 
       // inc_sample =  4.0f * powf(2.0f,( pitch_lfo - 2048.0f ) * 0.004 ) / samplerate;
@@ -492,6 +492,7 @@ void setup() {
     lut[i] = scale * scale * scale ;
 
     // create inc lfo table at base 4Hz in Center
+    // 4HZ Base Freq * pow(2,   (-8 Oktaven.... +8 Oktaven)) / samplerate
     lfo_inc_tab[i] =  4.0f * powf(2.0f,( (float)i - 2048.0f ) * 0.004 ) / samplerate;
   }
 
