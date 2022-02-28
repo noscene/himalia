@@ -503,8 +503,8 @@ void setup() {
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=4095;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=0;
   // COS
-  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
-  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(cosf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(sinf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
+  for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=(sinf((float) i / 2048.0 * PI) + 1.0) * 2046.0;
   // SAW
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
   for(int i = 0 ; i < 4096; i++)     wave_tables_lfo[0x7fff & iw++]=i;
