@@ -83,6 +83,21 @@ class SAMD51_ADC {
     }
   };
 
+
+  uint16_t readLastValueSlew(uint16_t * oldValue, float slew = 0.95) { // simple LowPass for Potis etc
+
+    // return readLastValue();
+
+    float new_adc_value = readLastValue();
+    const float w_old = slew;
+    const float w_new = 1.0 - w_old;
+    float oldValue_f = oldValue[0];
+    oldValue[0] = oldValue_f * w_old + new_adc_value * w_new;
+    return  oldValue[0];
+
+  }
+
+
   uint16_t readLastValue(){
     if(last_adc){
       //while (ADC1->INTFLAG.bit.RESRDY == 0);   // Waiting for conversion to complete

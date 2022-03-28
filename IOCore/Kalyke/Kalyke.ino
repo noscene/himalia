@@ -1,6 +1,11 @@
 #include <Wire.h>
 #include "wiring_private.h"
 #include "SAMD51_InterruptTimer.h"
+
+// Use this to figure out best tc_usec_timer value!!!!
+// #define DEBUG_TIMING_BY_SQR_OUT 1
+
+
 #include "samd51_adc.h"
 #include "adsr_class.h"
 // #include "lfo_wave.h"
@@ -35,22 +40,22 @@
 // erfolgt ein step zum nächsten wert. ist der Wert 0 wird die Hüllkurve gestoppt und im ausgang auf 1.0 gesetzt
 // ADSR und MSEG werden durch einen VCA verbunden.
 const float array_claps [16][16] ={ 
-    {0.8, -0.010, 0.4, -0.0, 0.12, -0.004, 0.12, -0.00, 0.06, -0.003, 0.12, -0.00, 0.10, -0.004, 0.004, -0.0, },
-    {0.8, -0.004, 0.4, -0.004, 0.8, -0.003, 0.4, -0.00, 0.06, -0.003, 0.12, 0.00, 0.12, -0.004, 0.004, 0.0, },
-    {0.6, -0.003, 0.4, -0.003, 0.5, -0.003, 0.50, -0.003, 0.5, -0.004, 0.42, -0.00, 0.5, -0.004, 0.5, -0.000, },
-    {0.8, -0.002, 0.6, -0.003, 0.6, -0.002, 0.5, -0.003, 0.6, -0.002, 0.12, -0.003, 0.12, -0.002, 0.12, 0.000, },
-    {0.6, -0.0015, 0.3, -0.0016, 0.5, -0.0016, 0.20, -0.0015, 0.5, -0.0012, 0.12,-0.0015, 0.6, -0.0010, 0.14, -0.0, }, 
-    {0.6, -0.0012, 0.3, -0.0013, 0.5, -0.0012, 0.20, -0.0013, 0.5, -0.0011, 0.12,-0.0013, 0.6, -0.0012, 0.14, -0.0,}, 
-    {0.6, -0.0010, 0.3, -0.0009, 0.5, -0.0010, 0.2, -0.0009, 0.5, -0.0010, 0.3, -0.0009, 0.5, -0.0010, 0.4, -0.00, }, 
-    {0.6,-0.00095, 0.3,-0.00085, 0.5,-0.00095, 0.2,-0.00085, 0.4,-0.00095, 0.3,-0.00085, 0.5,-0.00095, 0.4,-0.0,},
-    {0.6, -0.0009, 0.3, -0.0008, 0.5, -0.0009, 0.2, -0.0008, 0.4, -0.0009, 0.3, -0.0008, 0.5, -0.0009, 0.4, -0.00, }, 
-    {0.6,-0.00085, 0.3, -0.0008, 0.5, -0.00085, 0.2, -0.0008, 0.4, -0.00085, 0.3,-0.0008, 0.5,-0.00085, 0.4,-0.00,}, 
-    {0.6, -0.0008, 0.3, -0.00075, 0.5, -0.0009, 0.2, -0.0008, 0.4, -0.0009, 0.3, -0.0008, 0.5, -0.0009, 0.4, -0.00, }, 
-    {0.6,-0.0007, 0.3,-0.00075, 0.5, -0.0007, 0.2, -0.00075, 0.4,-0.0007, 0.3, -0.00075, 0.5, -0.0007, 0.4, -0.00,},
-    {0.6, -0.0006, 0.3, -0.00065, 0.5, -0.0006, 0.2, -0.0006, 0.4, -0.0006, 0.3, -0.0007, 0.5, -0.0006, 0.4, -0.00, },
-    {0.6, -0.0004, 0.3, -0.0005, 0.5, -0.0004, 0.2, -0.0005, 0.4, -0.0004, 0.3, -0.0006, 0.5, -0.0005, 0.4, -0.00, },
-    {0.004, -0.004, 0.004, -0.004, 0.004, -0.004, 0.004, -0.004, 0.003, -0.003, 0.003, -0.003, 0.002, -0.002, 0.002, -0.000, },
-    {0.003, -0.002, 0.002, -0.002, 0.003, -0.003, 0.002, -0.001, 0.003, -0.003, 0.003, -0.003, 0.002, -0.002, 0.002, -0.000,} 
+    {0.3, -0.010, 0.2, -0.009, 0.12, -0.000, 0.12, -0.00, 0.06, -0.003, 0.12, -0.00, 0.10, -0.004, 0.004, -0.0, },
+    {0.3, -0.004, 0.2, -0.004, 0.2, -0.003, 0.15, -0.00, 0.06, -0.003, 0.12, 0.00, 0.12, -0.004, 0.004, 0.0, },
+    {0.3, -0.002, 0.2, -0.003, 0.2, -0.003, 0.15, -0.000, 0.15, -0.000, 0.003, -0.00, 0.5, -0.004, 0.15, -0.000, },
+    {0.3, -0.002, 0.2, -0.003, 0.2, -0.002, 0.15, -0.000, 0.15, -0.000, 0.12, -0.003, 0.12, -0.000, 0.012, 0.000, },
+    {0.3, -0.0015, 0.2, -0.0015, 0.3, -0.00, 0.25, -0.0015, 0.25, -0.0015, 0.12,-0.0015, 0.15, -0.0015, 0.014, -0.0, }, 
+    {0.3, -0.0013, 0.2, -0.0013, 0.3, -0.00, 0.25, -0.0013, 0.25, -0.0013, 0.12,-0.0013, 0.15, -0.0013, 0.014, -0.0,}, 
+    {0.3, -0.0011, 0.2, -0.0011, 0.3, -0.0011, 0.25, -0.0011, 0.25, -0.0011, 0.15, -0.0011, 0.15, -0.0011, 0.015, -0.00, }, 
+    {0.3,-0.00098, 0.2,-0.00098, 0.3,-0.00098, 0.25,-0.00098, 0.25,-0.00098, 0.15,-0.00098, 0.15,-0.00098, 0.015,-0.0,},
+    {0.3, -0.00095, 0.2, -0.00095, 0.3, -0.00095, 0.25, -0.00095, 0.25, -0.00095, 0.15, -0.00095, 0.15, -0.00095, 0.015, -0.00, }, 
+    {0.3,-0.00092, 0.2, -0.0092, 0.3, -0.00092, 0.25, -0.00092, 0.25, -0.00092, 0.3,-0.00092, 0.15,-0.00092, 0.015,-0.00,}, 
+    {0.3, -0.0009, 0.2, -0.0009, 0.2, -0.0009, 0.25, -0.0009, 0.25, -0.0009, 0.3, -0.0009, 0.15, -0.0009, 0.015, -0.00, }, 
+    {0.3,-0.00085, 0.2,-0.00085, 0.2, -0.00085, 0.25, -0.00085, 0.25,-0.00085, 0.3, -0.00085, 0.15, -0.00085, 0.015, -0.00,},
+    {0.3, -0.0008, 0.2, -0.0008, 0.2, -0.0008, 0.25, -0.0008, 0.25, -0.0008, 0.3, -0.0008, 0.15, -0.0008, 0.015, -0.00, },
+    {0.3, -0.00075, 0.2, -0.00075, 0.2, -0.00075, 0.15, -0.00075, 0.15, -0.00075, 0.3, -0.00075, 0.15, -0.00075, 0.015, -0.00, },
+    {0.4, -0.0007, 0.1, -0.0007, 0.2, -0.0007, 0.1, -0.0007, 0.2, -0.0007, 0.3, -0.0007, 0.1, -0.0007, 0.02, -0.000, },
+    {0.3, -0.0006, 0.2, -0.0006, 0.03, -0.0006, 0.2, -0.0006, 0.1, -0.0006, 0.03, -0.0006, 0.1, -0.0006, 0.02, -0.000,} 
 };
 
 const float array_claps_attacks [16] = { 
@@ -91,8 +96,7 @@ double          lut[4096];                                // lookupTable adc -> 
 uint8_t         adsr_ratched_countdown = 0;
 uint8_t         adsr_ratched_prg = 0 ;                    // 0..15
 bool            adsr_ratched_mode;
-// Use this to figure out best tc_usec_timer value!!!!
-// #define DEBUG_TIMING_BY_SQR_OUT 1
+
 
 
 //
@@ -259,6 +263,7 @@ void renderAudio() {
   //now mod LFO
   
   float vca_adsr = mod_adsr2lfo / 4096.0;
+  // vca_adsr = 0.0; // TEST disable VCA
   float vca_lfo = 1.0 - vca_adsr;
   float adsr_anteil = (float) DACValue1 / 4096.0 * vca_adsr;
   DACValue0 = 4095 - ( (float)DACValue0 * vca_lfo + (float)DACValue0 * adsr_anteil );
@@ -283,15 +288,15 @@ void loop2() {
 
   // Ab hier wir lesen abwechselnd ADC´s und berechnen neue Timing Werte
   // static uint16_t noise_pitch_jack          = 2048;
-  static uint16_t lfo_wave_endlesspoti1     = 2048;   // not use
-  static uint16_t lfo_wave_endlesspoti2     = 2048;
-  static uint16_t lfo_wave_cv               = 2048;
+  static uint16_t lfo_wave_endlesspoti1     = 2048;     static uint16_t lfo_wave_endlesspoti1_old     = 2048; // not use
+  static uint16_t lfo_wave_endlesspoti2     = 2048;       static uint16_t lfo_wave_endlesspoti2_old     = 2048;
+  static uint16_t lfo_wave_cv               = 2048;     static uint16_t lfo_wave_cv_old               = 2048;
 
-  static uint16_t lfo_speed_poti       = 2048;
-  static uint16_t lfo_speed_cv         = 2048;
+  static uint16_t lfo_speed_poti       = 2048;    static uint16_t lfo_speed_poti_old       = 2048;  
+  static uint16_t lfo_speed_cv         = 2048;    static uint16_t lfo_speed_cv_old         = 2048;
   
   static uint16_t lfo_ratchet_poti     = 2048; 
-  static uint16_t lfo_decay_drywet     = 2048; 
+  static uint16_t lfo_decay_drywet     = 2048;   static uint16_t lfo_decay_drywet_old     = 2048; 
 
   
   
@@ -326,20 +331,27 @@ void loop2() {
       adc51.startReadAnalog(PA07,ADC_Channel7,false);      // Poti LFO Speed
       break;
     case 1: 
-      lfo_speed_poti = adc51.readLastValue();
-      pitch_lfo = (lfo_speed_poti + lfo_speed_cv / 2.0  - 1536); // CV Input scheint auf Mitte Normalisiert
+      lfo_speed_poti = adc51.readLastValueSlew(&lfo_speed_poti_old);
+      pitch_lfo = (lfo_speed_poti + lfo_speed_cv * 2 - 4096); // CV Input scheint auf Mitte Normalisiert
       pitch_lfo = RANGE(0,pitch_lfo,4095) ;
 
       // inc_sample =  4.0f * powf(2.0f,( pitch_lfo - 2048.0f ) * 0.004 ) / samplerate;
+
       inc_sample =lfo_inc_tab[(uint16_t)pitch_lfo];
-      
+/*
+      static float inc_sample_old = 0.001;
+      static float inc_sample_new = 0.001;
+      inc_sample_new = lfo_inc_tab[(uint16_t)pitch_lfo];
+      inc_sample = inc_sample_new * 0.5 + inc_sample_old * 0.5;
+      inc_sample_old = inc_sample;
+*/
 
       if(inc_sample>0.2) inc_sample= 0.2;                 // ca 2500 Hz Limit LFO Speed
       if(inc_sample<0)   inc_sample = 0.0000001;
       adc51.startReadAnalog(PB02,ADC_Channel14,false);      // LFO Wave Endless Poti1
       break;
     case 2:  
-      lfo_wave_endlesspoti1 = adc51.readLastValue();
+      lfo_wave_endlesspoti1 = adc51.readLastValueSlew(&lfo_wave_endlesspoti1_old);
       adc51.startReadAnalog(PB06,ADC_Channel8,true);      // SliderPoti Attack
       break;
     case 3:  
@@ -363,7 +375,7 @@ void loop2() {
       adc51.startReadAnalog(PA06,ADC_Channel6,false);  
       break;
     case 6:  
-      lfo_speed_cv = adc51.readLastValue();
+      lfo_speed_cv = adc51.readLastValueSlew(&lfo_speed_cv_old);
       adc51.startReadAnalog(PB09,ADC_Channel3,false); // Release Slider
       break;
     case 7:  
@@ -373,7 +385,7 @@ void loop2() {
       adc51.startReadAnalog(PB03,ADC_Channel15,false);  // Kalyke Fade IN:  TODO: reagiert nicht
       break;
     case 8:  
-      lfo_decay_drywet = adc51.readLastValue();   // Hier steht der Value vom mini poti rechts an den jacks der später entfällt
+      lfo_decay_drywet = adc51.readLastValueSlew(&lfo_decay_drywet_old);   // Hier steht der Value vom mini poti rechts an den jacks der später entfällt
       mod_adsr2lfo = MAP_RANGE(lfo_decay_drywet,250,3650, 0, 4095);
       // test_ratched = lfo_decay_drywet;
       PORT->Group[PORTB].OUTSET.reg = 1ul << 12;          // Setup Mux to read PotiExpAdsr
@@ -404,12 +416,12 @@ void loop2() {
       adc51.startReadAnalog(PB05,ADC_Channel7,true);      // Kalyke MiniPoti entfällt, erstmal provisorisch nutzen
       break;
     case 14:
-      lfo_wave_endlesspoti2 = adc51.readLastValue();
-      sample_offset = (RANGE(0,lfo_wave_endlesspoti2 + lfo_wave_cv - 2000,4096)) * 7;      
+      lfo_wave_endlesspoti2 = adc51.readLastValueSlew(&lfo_wave_endlesspoti2_old);
+      sample_offset = (RANGE(0,lfo_wave_endlesspoti2 + lfo_wave_cv * 2 - 4096,4096)) * 7;      
       adc51.startReadAnalog(PB04,ADC_Channel6,true); // lfo endletPoti 2
       break;
     case 15:
-      lfo_wave_cv = adc51.readLastValue();
+      lfo_wave_cv = adc51.readLastValueSlew(&lfo_wave_cv_old);
       adc51.startReadAnalog(PA11,ADC_Channel11,false); // adsr relase cv
       break;
     }
@@ -434,8 +446,8 @@ void setup() {
 
 
   pinMode(PA13,INPUT); digitalWrite(PA13,false);
-  pinMode(PA14,INPUT); digitalWrite(PA14,false);
-  pinMode(PA15,INPUT); digitalWrite(PA15,false);
+  pinMode(PA14,INPUT); digitalWrite(PA14,false);  // LFO CapSW ???
+  pinMode(PA15,INPUT); digitalWrite(PA15,false);  // ADSR CapSW ???
 
 
   pinMode(PB12,OUTPUT);       // Multiplexer ADC ADSR_Curv/Trig_Mode
@@ -455,7 +467,7 @@ void setup() {
   digitalWrite(PB15,false);
   digitalWrite(PA12,false);
 
-
+  // configure ADSR Filters
   pinMode(PA13,INPUT); // ADSR_FILTER_CAP1
   pinMode(PA14,INPUT); // ADSR_FILTER_CAP2
   pinMode(PA15,INPUT); // ADSR_FILTER_CAP3
@@ -490,7 +502,7 @@ void setup() {
 
     // create inc lfo table at base 4Hz in Center
     // 4HZ Base Freq * pow(2,   (-8 Oktaven.... +8 Oktaven)) / samplerate
-    lfo_inc_tab[i] =  4.0f * powf(2.0f,( (float)i - 2048.0f ) * 0.004 ) / samplerate;
+    lfo_inc_tab[i] =  4.0 * pow(2.0,( (double)i - 2048.0 ) * 0.004 ) / samplerate;
   }
 
 

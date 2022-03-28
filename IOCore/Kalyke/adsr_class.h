@@ -116,9 +116,13 @@ class ZM_ADSR {
 
         if(end_of_attack > 0){
             end_of_attack--;
+            #ifndef DEBUG_TIMING_BY_SQR_OUT
             PORT->Group[PORTA].OUTSET.reg = 1ul << 17; 
+            #endif
         }else{
+            #ifndef DEBUG_TIMING_BY_SQR_OUT
             PORT->Group[PORTA].OUTCLR.reg = 1ul << 17; 
+            #endif
         }
 
 
