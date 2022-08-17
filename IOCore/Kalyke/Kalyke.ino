@@ -34,7 +34,7 @@
 // 3 Button
 
 
-
+// andrer Test Uwe
 // Wenn ratched in der ADSR Aktiv ist wird eine zusätzliche MSEG Hülkurve beim Attack gestartet. Die Attackzeit ist Fix auf einen kurzen Wert eingestellt siehe array_claps_attacks
 // Jede MSEG Phase wird durch abwechselnde poitive und negative increments geformt. Bei überschreitung von 1.0 oder unterschreitung von 0.0 
 // erfolgt ein step zum nächsten wert. ist der Wert 0 wird die Hüllkurve gestoppt und im ausgang auf 1.0 gesetzt
